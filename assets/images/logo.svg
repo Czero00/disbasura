@@ -1,0 +1,29 @@
+<svg viewBox="0 0 260 220" fill="none" xmlns="http://www.w3.org/2000/svg" width="260" height="220">
+
+  <!-- TOP arrow -->
+  <path d="M108 30 Q130 18 152 30" stroke="#3cb371" stroke-width="4" fill="none" stroke-linecap="round"/>
+  <polygon points="152,24 162,30 152,36" fill="#3cb371"/>
+  <!-- RIGHT arrow -->
+  <path d="M200 78 Q212 110 200 142" stroke="#3cb371" stroke-width="4" fill="none" stroke-linecap="round"/>
+  <polygon points="194,142 200,154 206,142" fill="#3cb371"/>
+  <!-- BOTTOM arrow -->
+  <path d="M152 188 Q130 200 108 188" stroke="#3cb371" stroke-width="4" fill="none" stroke-linecap="round"/>
+  <polygon points="108,194 98,188 108,182" fill="#3cb371"/>
+  <!-- LEFT arrow -->
+  <path d="M60 142 Q48 110 60 78" stroke="#3cb371" stroke-width="4" fill="none" stroke-linecap="round"/>
+  <polygon points="66,78 60,66 54,78" fill="#3cb371"/>
+  <!-- Bin handle knob -->
+  <rect x="120" y="62" width="20" height="10" rx="4" fill="none" stroke="#3cb371" stroke-width="2.5"/>
+  <!-- Bin lid -->
+  <rect x="98" y="72" width="64" height="10" rx="4" fill="none" stroke="#3cb371" stroke-width="2.5"/>
+  <!-- Bin body -->
+  <rect x="104" y="84" width="52" height="52" rx="4" fill="none" stroke="#3cb371" stroke-width="2.5"/>
+  <!-- Bin vertical lines -->
+  <line x1="116" y1="92" x2="116" y2="128" stroke="#3cb371" stroke-width="2" stroke-linecap="round"/>
+  <line x1="126" y1="92" x2="126" y2="128" stroke="#3cb371" stroke-width="2" stroke-linecap="round"/>
+  <line x1="136" y1="92" x2="136" y2="128" stroke="#3cb371" stroke-width="2" stroke-linecap="round"/>
+  <line x1="146" y1="92" x2="146" y2="128" stroke="#3cb371" stroke-width="2" stroke-linecap="round"/>
+  <!-- Text -->
+  <text x="72" y="115" font-family="Georgia, serif" font-size="22" font-weight="700" fill="#3cb371" text-anchor="middle" letter-spacing="1">Dis</text>
+  <text x="190" y="115" font-family="Georgia, serif" font-size="22" font-weight="700" fill="#3cb371" text-anchor="middle" letter-spacing="1">Basura</text>
+</svg>

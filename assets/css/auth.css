@@ -1,0 +1,313 @@
+/* =============================================
+   auth.css — DisBasura Login Pages
+   ============================================= */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  height: 100%;
+  font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+  overflow: hidden;
+}
+
+/* ── Full-screen animated background ── */
+.auth-bg {
+  min-height: 100vh;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(135deg,
+    #0a4a3a 0%,
+    #0d6b50 20%,
+    #0e8f6a 38%,
+    #0a9a78 50%,
+    #0a8070 62%,
+    #0a6080 75%,
+    #083a6a 88%,
+    #051a48 100%
+  );
+}
+
+/* Glow blobs */
+.auth-blob {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(90px);
+  pointer-events: none;
+  z-index: 0;
+  animation: blobFloat 8s ease-in-out infinite alternate;
+}
+.auth-blob-1 { width:600px;height:600px;background:rgba(0,220,140,.16);top:-150px;left:-120px; }
+.auth-blob-2 { width:480px;height:480px;background:rgba(0,160,220,.12);bottom:-100px;right:200px;animation-delay:2s; }
+.auth-blob-3 { width:350px;height:350px;background:rgba(80,240,180,.1);top:30%;left:25%;animation-delay:4s; }
+.auth-blob-4 { width:300px;height:300px;background:rgba(0,100,200,.12);top:10%;right:10%;animation-delay:1s; }
+
+@keyframes blobFloat {
+  from { transform: translate(0,0) scale(1); }
+  to   { transform: translate(20px,30px) scale(1.05); }
+}
+
+/* Background SVG */
+.auth-bg-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ── Centered card wrapper ── */
+.auth-card-wrap {
+  position: relative;
+  z-index: 10;
+  width: 100%;
+  max-width: 440px;
+  padding: 1rem;
+}
+
+/* ── Glassmorphism card — matches reference exactly ── */
+.auth-card {
+  background: rgba(180, 220, 210, 0.22);
+  backdrop-filter: blur(28px);
+  -webkit-backdrop-filter: blur(28px);
+  border: 1.5px solid rgba(255,255,255,.35);
+  border-radius: 28px;
+  padding: 2.5rem 2.25rem 2.25rem;
+  box-shadow:
+    0 20px 60px rgba(0,0,0,.25),
+    inset 0 1px 0 rgba(255,255,255,.3),
+    inset 0 -1px 0 rgba(255,255,255,.1);
+}
+
+/* ── Logo / Brand row ── */
+.auth-brand {
+  display: flex;
+  align-items: center;
+  gap: .9rem;
+  margin-bottom: 1.75rem;
+  justify-content: center;
+}
+.auth-brand-icon {
+  width: 72px;
+  height: 72px;
+  flex-shrink: 0;
+}
+.auth-brand-text h1 {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 2rem;
+  font-weight: 900;
+  color: #1a3a2a;
+  letter-spacing: -.5px;
+  line-height: 1;
+}
+.auth-brand-text p {
+  font-size: .78rem;
+  color: #3a6a50;
+  margin-top: .2rem;
+  font-weight: 500;
+}
+
+/* ── Portal label (Resident / Admin / Collector) ── */
+.auth-portal-label {
+  display: inline-block;
+  font-size: .7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .1em;
+  padding: .2rem .7rem;
+  border-radius: 20px;
+  margin-bottom: .35rem;
+}
+.auth-portal-label.resident { background: rgba(29,185,84,.15); color: #1a6b3c; border: 1px solid rgba(29,185,84,.3); }
+.auth-portal-label.admin    { background: rgba(30,100,200,.15); color: #1a3a7c; border: 1px solid rgba(30,100,200,.3); }
+.auth-portal-label.collector{ background: rgba(220,140,0,.15);  color: #7a4a00; border: 1px solid rgba(220,140,0,.3);  }
+
+/* ── Heading ── */
+.auth-card h2 {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 1.7rem;
+  font-weight: 800;
+  color: #0d2a1e;
+  margin-bottom: 1.35rem;
+  letter-spacing: -.3px;
+}
+
+/* ── Pill input fields — exactly like reference ── */
+.field {
+  margin-bottom: .85rem;
+  position: relative;
+}
+.field label { display: none; }
+.field-icon {
+  position: absolute;
+  left: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: rgba(20,60,40,.5);
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+}
+.field input,
+.field select {
+  width: 100%;
+  padding: .82rem 1rem .82rem 2.8rem;
+  background: rgba(255,255,255,.25);
+  border: 1.5px solid rgba(255,255,255,.55);
+  border-radius: 50px;          /* pill shape */
+  font-family: inherit;
+  font-size: .95rem;
+  color: #0d2a1e;
+  outline: none;
+  transition: all .18s;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+.field input::placeholder { color: rgba(20,60,40,.45); }
+.field input:focus {
+  border-color: rgba(29,185,84,.7);
+  background: rgba(255,255,255,.35);
+  box-shadow: 0 0 0 3px rgba(29,185,84,.15);
+}
+.field input.no-icon,
+.field select.no-icon {
+  padding-left: 1rem;
+}
+
+/* ── Remember + Forgot row ── */
+.auth-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.25rem;
+  font-size: .84rem;
+}
+.auth-remember {
+  display: flex;
+  align-items: center;
+  gap: .45rem;
+  color: rgba(20,60,40,.7);
+  cursor: pointer;
+  user-select: none;
+}
+.auth-remember input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  accent-color: #1db954;
+  cursor: pointer;
+  border: 1.5px solid rgba(255,255,255,.6);
+  background: rgba(255,255,255,.3);
+}
+.auth-forgot {
+  color: rgba(20,60,40,.65);
+  text-decoration: none;
+  font-weight: 500;
+  transition: color .15s;
+}
+.auth-forgot:hover { color: #0d6b3c; }
+
+/* ── Sign In button — glowing green pill ── */
+.btn-primary {
+  width: 100%;
+  padding: .9rem;
+  background: linear-gradient(90deg, #1db954 0%, #15a348 50%, #0d8f3c 100%);
+  color: #fff;
+  border: none;
+  border-radius: 50px;           /* pill */
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  letter-spacing: .03em;
+  transition: opacity .18s, transform .12s, box-shadow .18s;
+  box-shadow:
+    0 4px 20px rgba(29,185,84,.5),
+    0 0 40px rgba(29,185,84,.2),
+    inset 0 1px 0 rgba(255,255,255,.2);
+  position: relative;
+  overflow: hidden;
+}
+.btn-primary::after {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 10%; right: 10%;
+  height: 3px;
+  background: rgba(255,255,255,.3);
+  border-radius: 50%;
+  filter: blur(4px);
+}
+.btn-primary:hover {
+  opacity: .92;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 28px rgba(29,185,84,.6), 0 0 50px rgba(29,185,84,.25);
+}
+.btn-primary:active { transform: translateY(0); }
+
+/* ── Footer links below card ── */
+.auth-footer {
+  text-align: center;
+  margin-top: .9rem;
+  font-size: .8rem;
+  color: rgba(255,255,255,.55);
+}
+.auth-footer a {
+  color: rgba(255,255,255,.8);
+  font-weight: 600;
+  text-decoration: none;
+  transition: color .15s;
+}
+.auth-footer a:hover { color: #fff; }
+
+/* ── Alerts ── */
+.alert-error {
+  background: rgba(220,53,69,.18);
+  border: 1px solid rgba(220,53,69,.4);
+  color: #c0392b;
+  border-radius: 12px;
+  padding: .65rem .9rem;
+  font-size: .83rem;
+  margin-bottom: .85rem;
+}
+.alert-success {
+  background: rgba(29,185,84,.15);
+  border: 1px solid rgba(29,185,84,.35);
+  color: #1a6b3c;
+  border-radius: 12px;
+  padding: .65rem .9rem;
+  font-size: .83rem;
+  margin-bottom: .85rem;
+}
+
+/* ── Admin first-time notice ── */
+.auth-notice {
+  background: rgba(255,255,255,.15);
+  border: 1px solid rgba(255,255,255,.3);
+  border-radius: 12px;
+  padding: .65rem .9rem;
+  font-size: .8rem;
+  color: #0d2a1e;
+  margin-bottom: .85rem;
+}
+
+/* ── Credit line ── */
+.auth-credit {
+  text-align: center;
+  font-size: .68rem;
+  color: rgba(255,255,255,.35);
+  margin-top: .85rem;
+  line-height: 1.8;
+}
+.auth-credit a { color: rgba(255,255,255,.4); text-decoration: none; }
+.auth-credit a:hover { color: rgba(255,255,255,.7); }
+
+/* ── Responsive ── */
+@media (max-width: 520px) {
+  html, body { overflow: auto; }
+  .auth-bg { align-items: flex-start; padding: 2rem 0; overflow: auto; min-height: 100vh; }
+  .auth-card { padding: 2rem 1.5rem; border-radius: 22px; }
+  .auth-brand-text h1 { font-size: 1.7rem; }
+}

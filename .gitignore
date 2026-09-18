@@ -1,0 +1,14 @@
+# Uploaded files (test photos, avatars) — not part of the codebase
+uploads/*
+!uploads/.gitkeep
+
+# OS junk
+.DS_Store
+Thumbs.db
+
+# Editor folders
+.vscode/
+.idea/
+
+# Local override configs (if any teammate makes one)
+config/local.php
