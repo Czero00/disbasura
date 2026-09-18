@@ -64,7 +64,7 @@ $initial   = strtoupper(substr($_SESSION['full_name'],0,1));
         <div class="avatar" style="background:var(--orange)"><?= $initial ?></div>
         <div class="sidebar-user-info"><strong><?= $full_name ?></strong><span><?= htmlspecialchars($sitio) ?></span></div>
       </div>
-      <a href="/disbasura/logout.php" class="signout-btn"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg><span class="nav-label">Sign Out</span></a>
+      <a href="/disbasura/logout.php?role=resident" class="signout-btn"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg><span class="nav-label">Sign Out</span></a>
     </div>
   </aside>
   <main class="main">

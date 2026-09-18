@@ -174,7 +174,7 @@ $dark    = $prefs['dark_mode'] ? 'dark' : '';
       <a href="/disbasura/resident/profile.php" class="active"><span class="nav-icon">👤</span> My Profile</a>
     </nav>
     <div class="sidebar-bottom">
-      <a href="/disbasura/logout.php" class="signout-link">
+      <a href="/disbasura/logout.php?role=resident" class="signout-link">
         <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
         <?= $lang['sign_out'] ?>
       </a>

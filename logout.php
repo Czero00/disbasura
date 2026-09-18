@@ -1,20 +1,17 @@
 <?php
 require_once __DIR__ . '/config/session.php';
 
-// Determine role BEFORE clearing anything
-$is_admin     = isset($_SESSION['admin_id'])     && !empty($_SESSION['admin_role']);
-$is_collector = isset($_SESSION['collector_id']) && !$is_admin;
-$is_resident  = isset($_SESSION['user_id'])      && !$is_admin && !$is_collector;
+$role = $_GET['role'] ?? '';
 
-// Clear ALL session data to prevent stale keys from previous logins
+// Clear only THIS role's session (config/session.php already picked the
+// right cookie based on ?role=, so this never touches the other two).
 session_unset();
 session_destroy();
 
-// Redirect to the correct login page
-if ($is_admin) {
+if ($role === 'admin') {
     header('Location: /disbasura/admin/login.php'); exit;
 }
-if ($is_collector) {
+if ($role === 'collector') {
     header('Location: /disbasura/collector/login.php'); exit;
 }
 

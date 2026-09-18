@@ -156,7 +156,7 @@ function render_admin_header(string $active = '', int $unread = 0, string $title
           style="flex:1;display:inline-flex;align-items:center;justify-content:center;gap:.3rem;padding:.42rem .55rem;border:1.5px solid var(--border);border-radius:8px;background:transparent;cursor:pointer;font-size:.74rem;font-weight:600;color:var(--text-mid);font-family:inherit;transition:all .18s;white-space:nowrap">
           '.$dark_icon.' <span class="nav-label">'.($prefs['dark_mode'] ? 'Light' : 'Dark').'</span>
         </button>
-        <a href="/disbasura/logout.php"
+        <a href="/disbasura/logout.php?role=admin"
           style="flex:1;display:inline-flex;align-items:center;justify-content:center;gap:.3rem;padding:.42rem .55rem;border:1.5px solid rgba(224,82,82,.3);border-radius:8px;background:transparent;font-size:.74rem;font-weight:600;color:var(--red);text-decoration:none;transition:all .18s;white-space:nowrap">
           <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
           <span class="nav-label">Sign Out</span>

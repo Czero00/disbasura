@@ -99,7 +99,7 @@ $isDark = (int)($collector['dark_mode'] ?? 0);
       </button>
     </form>
     <!-- Sign out -->
-    <a href="/disbasura/logout.php" class="col-signout">
+    <a href="/disbasura/logout.php?role=collector" class="col-signout">
       <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
         <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/>
         <polyline points="16 17 21 12 16 7"/>
