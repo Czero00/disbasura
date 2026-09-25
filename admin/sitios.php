@@ -3,6 +3,21 @@ require_once __DIR__ . '/../middleware/admin_auth.php';
 require_once __DIR__ . '/../includes/helpers.php';
 require_once __DIR__ . '/../includes/base_admin.php';
 $db = get_db();
+
+// Older installations may have created sitios before barangay assignments
+// were added. Upgrade that table before any page actions or queries use the
+// column. This is safe to run on every request because the check is read-only
+// and ALTER TABLE only runs when the column is missing.
+try {
+    $sitioBarangayColumn = $db->query("SHOW COLUMNS FROM sitios LIKE 'barangay_id'")->fetch();
+    if (!$sitioBarangayColumn) {
+        $db->exec('ALTER TABLE sitios ADD COLUMN barangay_id INT NULL AFTER name');
+    }
+} catch (PDOException $e) {
+    http_response_code(500);
+    exit('The sitios table needs the barangay_id database upgrade. The database account must have permission to alter tables.');
+}
+
 $cebuCityStmt = $db->prepare('SELECT id FROM cities WHERE name = ? LIMIT 1');
 $cebuCityStmt->execute(['Cebu City']);
 $cebuCityId = (int)$cebuCityStmt->fetchColumn();
