@@ -24,9 +24,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $error = 'Username cannot be numbers only.';
     } else {
         $db = get_db();
-        if ($db->prepare("SELECT id FROM users WHERE username=?")->execute([$username]) && $db->query("SELECT id FROM users WHERE username='$username'")->fetch()) {
+        $usernameCheck = $db->prepare('SELECT id FROM users WHERE username = ? LIMIT 1');
+        $usernameCheck->execute([$username]);
+        $emailCheck = $db->prepare('SELECT id FROM users WHERE email = ? LIMIT 1');
+        $emailCheck->execute([$email]);
+        if ($usernameCheck->fetch()) {
             $error = 'Username already taken.';
-        } elseif ($db->query("SELECT id FROM users WHERE email='".addslashes($email)."'")->fetch()) {
+        } elseif ($emailCheck->fetch()) {
             $error = 'Email already registered.';
         } else {
             $db->prepare("INSERT INTO users (full_name,username,email,password,role,sitio,phone) VALUES (?,?,?,?,?,?,?)")
@@ -43,6 +47,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   <title>Register — DisBasura</title>
   <link rel="stylesheet" href="/disbasura/assets/css/base.css"/>
   <link rel="stylesheet" href="/disbasura/assets/css/auth.css"/>
+  <style>
+    html, body { min-height: 100%; height: auto; overflow-x: hidden; overflow-y: auto; }
+    .auth-bg { min-height: 100vh; height: auto; flex-direction: column; justify-content: center; gap: 1rem; padding: 2.5rem 1rem; overflow: visible; }
+    .auth-logo, .auth-card { position: relative; z-index: 1; }
+    .auth-logo { text-align: center; margin: 0 auto; }
+    .auth-logo svg { display: block; width: 48px; height: 42px; margin: 0 auto .25rem; }
+    .auth-logo h1 { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 1.8rem; font-weight: 800; color: #fff; letter-spacing: -.5px; }
+    .auth-logo p { color: rgba(255,255,255,.78); font-size: .9rem; }
+    .auth-card { width: min(100%, 560px); padding: 2rem 2.25rem; background: rgba(255,255,255,.97); border: 1px solid rgba(255,255,255,.65); border-radius: 22px; box-shadow: 0 22px 65px rgba(0,0,0,.24); backdrop-filter: blur(12px); }
+    .auth-card h2 { color: #14231d; font-size: 1.6rem; margin-bottom: .35rem; }
+    .auth-card .sub { color: #63776d; font-size: .88rem; margin-bottom: 1.2rem; }
+    .auth-card form > div[style*="grid"] { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; }
+    .auth-card .field { margin-bottom: .75rem; min-width: 0; }
+    .auth-card .field label { display: block; color: #34483e; font-size: .78rem; font-weight: 700; margin: 0 0 .35rem .15rem; }
+    .auth-card .field input, .auth-card .field select { width: 100%; min-height: 44px; padding: .68rem .9rem; border: 1px solid #d5e2db; border-radius: 10px; background: #fff; color: #17251f; font-size: .88rem; backdrop-filter: none; }
+    .auth-card .field input:focus, .auth-card .field select:focus { border-color: #16845e; box-shadow: 0 0 0 3px rgba(22,132,94,.12); }
+    .auth-card .field select:disabled { background: #f1f5f3; color: #7c8b84; cursor: not-allowed; }
+    .auth-card .alert-error { color: #a52935; }
+    .auth-card .btn-primary { margin-top: .15rem; border-radius: 10px; padding: .8rem 1rem; box-shadow: none; }
+    .auth-card .btn-primary::after { display: none; }
+    .auth-card .auth-footer { color: #65766e; margin-top: 1rem; }
+    .auth-card .auth-footer a { color: #087b57; }
+    @media (max-width: 520px) { .auth-bg { padding: 1.25rem .75rem; gap: .75rem; } .auth-card { padding: 1.4rem 1.1rem; border-radius: 18px; } .auth-card form > div[style*="grid"] { grid-template-columns: 1fr; gap: 0; } .auth-card h2 { font-size: 1.4rem; } }
+  </style>
 </head>
 <body>
 <div class="auth-bg">
