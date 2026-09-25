@@ -3,24 +3,37 @@ require_once __DIR__ . '/../middleware/admin_auth.php';
 require_once __DIR__ . '/../includes/helpers.php';
 require_once __DIR__ . '/../includes/base_admin.php';
 $db = get_db();
+
+$disputeHasUserId = (bool)$db->query("SHOW COLUMNS FROM disputes LIKE 'user_id'")->fetch();
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $did     = (int)$_POST['did'];
-    $verdict = $_POST['verdict'];
-    $dispute = $db->query("SELECT * FROM disputes WHERE id=$did")->fetch();
+    $did     = (int)($_POST['did'] ?? 0);
+    $verdict = $_POST['verdict'] ?? '';
+    $disputeStmt = $db->prepare("SELECT * FROM disputes WHERE id=? AND status='pending'");
+    $disputeStmt->execute([$did]);
+    $dispute = $disputeStmt->fetch();
     if ($dispute) {
-        $db->prepare("UPDATE disputes SET status=?,resolution=?,admin_id=? WHERE id=?")->execute([$verdict,$verdict,$_SESSION['admin_id'],$did]);
+        $resolution = $verdict === 'confirm' ? 'confirm' : 'reopen';
+        $db->prepare("UPDATE disputes SET status='resolved',resolution=?,admin_id=? WHERE id=?")
+            ->execute([$resolution,$_SESSION['admin_id'],$did]);
         if ($verdict === 'confirm') {
             $db->prepare("UPDATE schedules SET status='completed' WHERE id=?")->execute([$dispute['schedule_id']]);
-            notify_user($db,$dispute['user_id'],"Your dispute was reviewed. Admin confirmed the collection was completed.");
+            if (!empty($dispute['user_id'])) {
+                notify_user($db,$dispute['user_id'],"Your dispute was reviewed. Admin confirmed the collection was completed.");
+            }
         } else {
             $db->prepare("UPDATE schedules SET status='scheduled',proof_photo=NULL WHERE id=?")->execute([$dispute['schedule_id']]);
-            notify_user($db,$dispute['user_id'],"✅ Your dispute was reviewed. The schedule has been re-opened — collection will be done again.");
+            if (!empty($dispute['user_id'])) {
+                notify_user($db,$dispute['user_id'],"Your dispute was reviewed. The schedule has been re-opened; collection will be done again.");
+            }
         }
         log_activity($_SESSION['admin_id'], 'Resolved Dispute', "Dispute #$did — verdict: $verdict", 'admin', 'disputes', $did);
     }
     header('Location: /disbasura/admin/disputes.php'); exit;
 }
-$disputes = $db->query("SELECT d.*,u.full_name as resident_name,s.sitio,s.scheduled_at,s.waste_type,s.proof_photo as sched_proof_photo,s.collector_id,c.full_name as collector_name FROM disputes d JOIN users u ON d.user_id=u.id JOIN schedules s ON d.schedule_id=s.id LEFT JOIN collectors c ON s.collector_id=c.id WHERE d.status='pending' ORDER BY d.created_at DESC")->fetchAll();
+$residentJoin = $disputeHasUserId ? 'LEFT JOIN users u ON d.user_id=u.id' : '';
+$residentName = $disputeHasUserId ? 'u.full_name' : "'Unknown resident'";
+$disputes = $db->query("SELECT d.*,$residentName AS resident_name,s.sitio,s.scheduled_at,s.waste_type,s.proof_photo AS sched_proof_photo,s.collector_id,c.full_name AS collector_name FROM disputes d $residentJoin JOIN schedules s ON d.schedule_id=s.id LEFT JOIN collectors c ON s.collector_id=c.id WHERE d.status='pending' ORDER BY d.created_at DESC")->fetchAll();
 $unread = get_unread_admin_count($_SESSION['admin_id']);
 render_admin_header('disputes',$unread,'Disputes — DisBasura Admin');
 ?>
@@ -31,7 +44,7 @@ render_admin_header('disputes',$unread,'Disputes — DisBasura Admin');
     <div>
       <strong style="font-size:1rem"><?= htmlspecialchars($d['sitio']) ?> — <?= htmlspecialchars($d['waste_type']) ?></strong>
       <div style="font-size:.82rem;color:var(--text-light)">Scheduled: <?= fmt_date($d['scheduled_at']) ?></div>
-      <div style="font-size:.82rem;color:var(--text-mid)">👤 Resident: <strong><?= htmlspecialchars($d['resident_name']) ?></strong></div>
+      <div style="font-size:.82rem;color:var(--text-mid)">👤 Resident: <strong><?= htmlspecialchars($d['resident_name'] ?? 'Unknown resident') ?></strong></div>
       <div style="font-size:.82rem;color:var(--text-mid)">🚛 Collector: <strong><?= htmlspecialchars($d['collector_name']??'Unassigned') ?></strong></div>
       <div style="font-size:.82rem;color:var(--orange)">Filed: <?= fmt_date($d['created_at']) ?></div>
     </div>

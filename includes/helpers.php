@@ -104,8 +104,33 @@ function notify_all_admins(PDO $db, string $message, string $title = 'Admin Aler
 function log_activity(int $actor_id, string $action_type, string $details = '', string $actor_type = 'admin', ?string $affected_table = null, ?int $affected_record_id = null): void {
     try {
         $ip = $_SERVER['REMOTE_ADDR'] ?? null;
-        get_db()->prepare("INSERT INTO activity_log (actor_id,actor_type,action_type,details,affected_table,affected_record_id,ip_address,created_at) VALUES (?,?,?,?,?,?,?,?)")
-                ->execute([$actor_id, $actor_type, $action_type, $details, $affected_table, $affected_record_id, $ip, now_pht()]);
+        $db = get_db();
+        static $columns = null;
+        if ($columns === null) {
+            $columns = array_column($db->query('SHOW COLUMNS FROM activity_log')->fetchAll(), 'Field');
+        }
+        $data = [];
+        $actorColumn = in_array('actor_id', $columns, true) ? 'actor_id' : null;
+        if (!$actorColumn && $actor_type === 'admin' && in_array('admin_id', $columns, true)) $actorColumn = 'admin_id';
+        if (!$actorColumn && in_array($actor_type === 'collector' ? 'collector_id' : 'user_id', $columns, true)) {
+            $actorColumn = $actor_type === 'collector' ? 'collector_id' : 'user_id';
+        }
+        if ($actorColumn) $data[$actorColumn] = $actor_id;
+        if (in_array('actor_type', $columns, true)) $data['actor_type'] = $actor_type;
+        if (in_array('action_type', $columns, true)) $data['action_type'] = $action_type;
+        elseif (in_array('action', $columns, true)) $data['action'] = $action_type;
+        if (in_array('details', $columns, true)) $data['details'] = $details;
+        if (in_array('affected_table', $columns, true)) $data['affected_table'] = $affected_table;
+        if (in_array('affected_record_id', $columns, true)) $data['affected_record_id'] = $affected_record_id;
+        if (in_array('ip_address', $columns, true)) $data['ip_address'] = $ip;
+        if (in_array('created_at', $columns, true)) $data['created_at'] = now_pht();
+        elseif (in_array('timestamp', $columns, true)) $data['timestamp'] = now_pht();
+        if (!$data) return;
+        $fields = array_keys($data);
+        $quotedFields = array_map(static fn($field) => '`' . $field . '`', $fields);
+        $placeholders = implode(',', array_fill(0, count($fields), '?'));
+        $db->prepare('INSERT INTO activity_log (' . implode(',', $quotedFields) . ') VALUES (' . $placeholders . ')')
+           ->execute(array_values($data));
     } catch (Exception $e) {}
 }
 

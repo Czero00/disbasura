@@ -5,6 +5,9 @@ require_once __DIR__ . '/../includes/base_admin.php';
 $db  = get_db();
 $aid = $_SESSION['admin_id'];
 
+$activityColumns = array_column($db->query('SHOW COLUMNS FROM activity_log')->fetchAll(), 'Field');
+$hasActorType = in_array('actor_type', $activityColumns, true);
+
 $page   = max(1, (int)($_GET['page'] ?? 1));
 $limit  = 30;
 $offset = ($page - 1) * $limit;
@@ -14,13 +17,48 @@ $pages  = ceil($total / $limit);
 // actor_id resolves against a different table depending on actor_type
 // (administrators / users / collectors) — Table 21 notes this is a
 // logical, not enforced, FK for exactly that reason.
+$actorColumn = null;
+$actorEntity = null;
+foreach (['actor_id' => null, 'admin_id' => 'admin', 'user_id' => 'user', 'collector_id' => 'collector'] as $column => $entity) {
+    if (in_array($column, $activityColumns, true)) {
+        $actorColumn = $column;
+        $actorEntity = $entity;
+        break;
+    }
+}
+$actionColumn = in_array('action_type', $activityColumns, true) ? 'action_type' : (in_array('action', $activityColumns, true) ? 'action' : (in_array('activity', $activityColumns, true) ? 'activity' : null));
+$detailColumn = in_array('details', $activityColumns, true) ? 'details' : (in_array('description', $activityColumns, true) ? 'description' : null);
+$timeColumn = in_array('created_at', $activityColumns, true) ? 'created_at' : (in_array('timestamp', $activityColumns, true) ? 'timestamp' : null);
+$orderColumn = $timeColumn ?: (in_array('id', $activityColumns, true) ? 'id' : $activityColumns[0]);
+$actorTypeSelect = $hasActorType ? 'l.actor_type' : "'admin' AS actor_type";
+$actorJoins = '';
+$actorName = "'Unknown'";
+if ($actorColumn && $hasActorType) {
+    $actorJoins = "LEFT JOIN administrators a ON l.actor_type='admin' AND l.$actorColumn=a.id
+       LEFT JOIN users u ON l.actor_type IN ('resident','leader') AND l.$actorColumn=u.id
+       LEFT JOIN collectors c ON l.actor_type='collector' AND l.$actorColumn=c.id";
+    $actorName = "COALESCE(a.full_name, u.full_name, c.full_name, 'Unknown')";
+} elseif ($actorColumn && $actorEntity === 'admin') {
+    $actorJoins = "LEFT JOIN administrators a ON l.$actorColumn=a.id";
+    $actorName = "COALESCE(a.full_name, 'Unknown')";
+} elseif ($actorColumn && $actorEntity === 'user') {
+    $actorJoins = "LEFT JOIN users u ON l.$actorColumn=u.id";
+    $actorName = "COALESCE(u.full_name, 'Unknown')";
+} elseif ($actorColumn && $actorEntity === 'collector') {
+    $actorJoins = "LEFT JOIN collectors c ON l.$actorColumn=c.id";
+    $actorName = "COALESCE(c.full_name, 'Unknown')";
+} elseif ($actorColumn) {
+    $actorJoins = "LEFT JOIN administrators a ON l.$actorColumn=a.id LEFT JOIN users u ON l.$actorColumn=u.id LEFT JOIN collectors c ON l.$actorColumn=c.id";
+    $actorName = "COALESCE(a.full_name, u.full_name, c.full_name, 'Unknown')";
+}
+$actionSelect = $actionColumn ? "l.$actionColumn AS action_type" : "'Activity' AS action_type";
+$detailSelect = $detailColumn ? "l.$detailColumn AS details" : "'' AS details";
+$timeSelect = $timeColumn ? "l.$timeColumn AS created_at" : 'NULL AS created_at';
 $logs = $db->query("
-    SELECT l.*, COALESCE(a.full_name, u.full_name, c.full_name, 'Unknown') AS actor_name
+    SELECT l.*, $actionSelect, $detailSelect, $timeSelect, $actorTypeSelect, $actorName AS actor_name
     FROM activity_log l
-    LEFT JOIN administrators a ON l.actor_type='admin' AND l.actor_id=a.id
-    LEFT JOIN users u          ON l.actor_type IN ('resident','leader') AND l.actor_id=u.id
-    LEFT JOIN collectors c     ON l.actor_type='collector' AND l.actor_id=c.id
-    ORDER BY l.created_at DESC LIMIT $limit OFFSET $offset
+    $actorJoins
+    ORDER BY l.$orderColumn DESC LIMIT $limit OFFSET $offset
 ")->fetchAll();
 $unread = get_unread_admin_count($aid);
 render_admin_header('activity', $unread, 'Activity Log — DisBasura');

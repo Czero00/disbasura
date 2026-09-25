@@ -15,12 +15,27 @@ $schedules = $db->prepare(
 $schedules->execute([$sitio]);
 $schedules = $schedules->fetchAll();
 
-$my_dispute_ids = $db->prepare("SELECT schedule_id FROM disputes WHERE user_id=?");
-$my_dispute_ids->execute([$uid]);
+$disputeHasUserId = (bool)$db->query("SHOW COLUMNS FROM disputes LIKE 'user_id'")->fetch();
+if ($disputeHasUserId) {
+    $my_dispute_ids = $db->prepare("SELECT schedule_id FROM disputes WHERE user_id=?");
+    $my_dispute_ids->execute([$uid]);
+} else {
+    // Legacy dispute tables cannot distinguish which resident filed a dispute.
+    $my_dispute_ids = $db->query('SELECT schedule_id FROM disputes');
+}
 $my_dispute_ids = array_column($my_dispute_ids->fetchAll(), 'schedule_id');
 
-$my_feedback_ids = $db->prepare("SELECT schedule_id FROM feedback WHERE user_id=?");
-$my_feedback_ids->execute([$uid]);
+$feedbackColumns = array_column($db->query('SHOW COLUMNS FROM feedback')->fetchAll(), 'Field');
+$feedbackUserColumn = null;
+foreach (['user_id', 'rated_by', 'resident_id'] as $candidate) {
+    if (in_array($candidate, $feedbackColumns, true)) { $feedbackUserColumn = $candidate; break; }
+}
+if ($feedbackUserColumn) {
+    $my_feedback_ids = $db->prepare("SELECT schedule_id FROM feedback WHERE `$feedbackUserColumn`=?");
+    $my_feedback_ids->execute([$uid]);
+} else {
+    $my_feedback_ids = $db->query('SELECT schedule_id FROM feedback');
+}
 $my_feedback_ids = array_column($my_feedback_ids->fetchAll(), 'schedule_id');
 ?>
 <!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/><title>Sitio Schedule — DisBasura</title><link rel="stylesheet" href="/disbasura/assets/css/base.css"/><link rel="stylesheet" href="/disbasura/assets/css/dashboard.css"/></head>

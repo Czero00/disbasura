@@ -4,22 +4,35 @@ require_once __DIR__ . '/../includes/helpers.php';
 $sid = (int)($_GET['sid'] ?? 0);
 $db  = get_db();
 $uid = $_SESSION['user_id'];
+$disputeHasUserId = (bool)$db->query("SHOW COLUMNS FROM disputes LIKE 'user_id'")->fetch();
 $backUrl = $_SESSION['role'] === 'leader' ? '/disbasura/leader/schedules.php' : '/disbasura/resident/dashboard.php';
 $sched = $db->query("SELECT * FROM schedules WHERE id=$sid")->fetch();
 $in_sitio = $sched && $sched['sitio'] === ($_SESSION['sitio']??'');
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $sched && $in_sitio) {
-    $existing = $db->query("SELECT id FROM disputes WHERE schedule_id=$sid AND user_id=$uid")->fetch();
+    $existingQuery = $disputeHasUserId
+        ? $db->prepare('SELECT id FROM disputes WHERE schedule_id=? AND user_id=?')
+        : $db->prepare('SELECT id FROM disputes WHERE schedule_id=?');
+    $existingQuery->execute($disputeHasUserId ? [$sid, $uid] : [$sid]);
+    $existing = $existingQuery->fetch();
     if (!$existing) {
         $fname = null;
         if (isset($_FILES['dispute_photo'])) $fname = save_upload($_FILES['dispute_photo'],"dispute_{$sid}_{$uid}");
         $note = $_POST['note'] ?? '';
-        $db->prepare("INSERT INTO disputes (schedule_id,user_id,proof_photo,description) VALUES (?,?,?,?)")->execute([$sid,$uid,$fname,$note]);
+        if ($disputeHasUserId) {
+            $db->prepare("INSERT INTO disputes (schedule_id,user_id,proof_photo,description) VALUES (?,?,?,?)")->execute([$sid,$uid,$fname,$note]);
+        } else {
+            $db->prepare("INSERT INTO disputes (schedule_id,proof_photo,description) VALUES (?,?,?)")->execute([$sid,$fname,$note]);
+        }
         $db->prepare("UPDATE schedules SET status='disputed' WHERE id=?")->execute([$sid]);
         notify_all_admins($db,"⚠️ Dispute filed by {$_SESSION['full_name']} ({$_SESSION['role']}) for {$sched['sitio']} schedule. Review needed.");
     }
     header('Location: '.$backUrl); exit;
 }
-$existing_dispute = $db->query("SELECT * FROM disputes WHERE schedule_id=$sid AND user_id=$uid")->fetch();
+$existingQuery = $disputeHasUserId
+    ? $db->prepare('SELECT * FROM disputes WHERE schedule_id=? AND user_id=?')
+    : $db->prepare('SELECT * FROM disputes WHERE schedule_id=?');
+$existingQuery->execute($disputeHasUserId ? [$sid, $uid] : [$sid]);
+$existing_dispute = $existingQuery->fetch();
 ?>
 <!DOCTYPE html>
 <html lang="en">
