@@ -31,14 +31,21 @@
     .menu-toggle{display:none;border:0;background:transparent;color:var(--ink);font-size:25px;cursor:pointer}
     .login-modal{position:fixed;inset:0;z-index:30;display:none;place-items:center;padding:20px;background:rgba(7,25,31,.62);backdrop-filter:blur(5px)}
     .login-modal.open{display:grid}
-    .login-dialog{position:relative;width:min(100%,440px);padding:34px;background:#fff;border:1px solid var(--line);border-radius:22px;box-shadow:0 24px 70px #061d183d}
-    .login-dialog h2{font-size:28px;margin-bottom:7px}
-    .login-dialog>p{color:var(--muted);font-size:14px;margin-bottom:24px}
-    .login-close{position:absolute;right:16px;top:14px;border:0;background:transparent;color:#64748b;font-size:27px;cursor:pointer}
+    .login-dialog{position:relative;width:min(100%,460px);padding:36px;background:#fff;border:1px solid var(--line);border-radius:24px;box-shadow:0 28px 80px #061d1845}
+    .login-brand{display:flex;align-items:center;gap:12px;margin-bottom:30px;padding-bottom:23px;border-bottom:1px solid #edf1f4}
+    .login-brand .brand-mark{width:48px;height:48px;flex:none}
+    .login-brand-copy{display:flex;flex-direction:column;align-items:flex-start;gap:2px}
+    .login-brand-name{font-size:20px;line-height:1.2;font-weight:800;letter-spacing:-.5px;color:var(--ink)}
+    .login-brand-title{display:block;font-size:12px;line-height:1.35;color:var(--muted)}
+    .login-heading{font-size:27px;letter-spacing:-.8px;margin-bottom:7px}
+    .login-dialog>p{color:var(--muted);font-size:14px;line-height:1.55;margin-bottom:22px}
+    .login-close{position:absolute;right:17px;top:17px;width:36px;height:36px;border:1px solid #e5ebef;border-radius:50%;background:#fff;color:#64748b;font-size:23px;cursor:pointer;transition:background .18s,color .18s}
+    .login-close:hover{background:#f1f7f4;color:var(--green)}
     .login-field{display:block;margin-top:16px;color:#33445e;font-size:13px;font-weight:700}
     .login-field input{display:block;width:100%;height:48px;margin-top:7px;padding:0 14px;border:1px solid #d8e2e9;border-radius:10px;font:inherit;font-weight:400;outline:none}
     .login-field input:focus{border-color:var(--green);box-shadow:0 0 0 3px #07845f20}
-    .login-submit{width:100%;height:49px;margin-top:22px;border:0;border-radius:10px;background:#07845f;color:white;font:inherit;font-weight:700;cursor:pointer}
+    .login-submit{width:100%;height:50px;margin-top:22px;border:0;border-radius:11px;background:linear-gradient(110deg,#0aa775,#087653);color:white;font:inherit;font-weight:700;cursor:pointer;box-shadow:0 7px 16px #07845f26;transition:transform .18s,box-shadow .18s}
+    .login-submit:hover{transform:translateY(-1px);box-shadow:0 10px 20px #07845f35}
     .login-error{padding:10px 12px;border-radius:9px;background:#fff0f0;color:#b42318;font-size:13px;margin-bottom:12px}
     .login-success{padding:10px 12px;border-radius:9px;background:#e9f8ef;color:#167347;font-size:13px;margin-bottom:12px}
     body.modal-open{overflow:hidden}
@@ -147,8 +154,12 @@
 <div class="login-modal" id="login-modal" aria-hidden="true">
   <section class="login-dialog" role="dialog" aria-modal="true" aria-labelledby="login-title">
     <button class="login-close" type="button" aria-label="Close sign in" data-close-login>&times;</button>
-    <h2 id="login-title">Sign in to DisBasura</h2>
-    <p>Use your account username and password. We’ll open the correct dashboard for your account.</p>
+    <div class="login-brand">
+      <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M20 4c-7.6.3-12 2.7-12 7.1 0 2.5 1.8 4.1 4.2 4.1C17 15.2 20.6 10.5 20 4Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M4 20c1-5.1 4-8.1 9-9.7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></span>
+      <span class="login-brand-copy"><span class="login-brand-name">DisBasura</span><span class="login-brand-title">Smart Garbage Collection System</span></span>
+    </div>
+    <h2 class="login-heading" id="login-title">Welcome back</h2>
+    <p>Sign in with your account. We’ll take you to the right dashboard.</p>
     <?php if (!empty($_GET['registered'])): ?><div class="login-success">Account created successfully. Sign in to continue.</div><?php endif; ?>
     <?php if (!empty($_GET['login_error'])): ?><div class="login-error"><?= htmlspecialchars($_GET['login_error'], ENT_QUOTES, 'UTF-8') ?></div><?php endif; ?>
     <form method="post" action="/disbasura/login.php">

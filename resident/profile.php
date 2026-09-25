@@ -129,7 +129,7 @@ $dark    = $prefs['dark_mode'] ? 'dark' : '';
     .field input:focus{border-color:#1e6b3c;box-shadow:0 0 0 3px rgba(30,107,60,.1);background:#fff}
     .btn-save{padding:.65rem 1.5rem;background:#1e6b3c;color:#fff;border:none;border-radius:8px;font-family:'Plus Jakarta Sans',sans-serif;font-size:.88rem;font-weight:700;cursor:pointer;transition:all .18s}
     .btn-save:hover{background:#2d8653;transform:translateY(-1px)}
-    @media(max-width:680px){.res-sidebar{display:none}.res-main{padding:1.25rem}}
+    @media(max-width:680px){.res-sidebar{position:fixed;left:-260px;top:0;height:100vh;z-index:999;display:flex;transition:left .3s ease}.res-sidebar.open{left:0!important}.res-main{padding:1.25rem}}
   </style>
 </head>
 <body>
@@ -250,5 +250,6 @@ $dark    = $prefs['dark_mode'] ? 'dark' : '';
     </div>
   </main>
 </div>
+<script src="/disbasura/assets/js/sidebar-toggle.js"></script>
 </body>
 </html>

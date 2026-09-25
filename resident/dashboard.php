@@ -197,7 +197,7 @@ $dark = $prefs['dark_mode'] ? 'dark' : '';
 
     /* Responsive */
     /* Ham btn — hidden on desktop, shown on mobile via media query */
-    .res-ham-btn{display:none;flex-direction:column;justify-content:center;gap:5px;position:fixed;top:12px;left:12px;z-index:210;width:40px;height:40px;padding:7px;background:#2d8653;border:none;border-radius:10px;cursor:pointer;box-shadow:0 2px 8px rgba(45,134,83,.4)}
+    .res-ham-btn{display:flex;flex-direction:column;justify-content:center;gap:4px;width:32px;height:32px;padding:6px;background:#2d8653;border:none;border-radius:8px;cursor:pointer;box-shadow:0 2px 7px rgba(45,134,83,.22);flex-shrink:0}
     .res-ham-btn span{display:block;width:100%;height:2.5px;background:#fff;border-radius:2px}
     /* Resident overlay */
     .res-mob-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.52);z-index:199;cursor:pointer}
@@ -689,9 +689,18 @@ document.getElementById('reqProofModal').addEventListener('click', function(e){ 
 var _rSb  = document.querySelector(".res-sidebar");
 var _rHam = document.getElementById("resHamBtn");
 var _rOv  = document.getElementById("resMobOverlay");
-function openResSb()  { if(_rSb)_rSb.classList.add("open");  if(_rOv)_rOv.classList.add("show"); }
-function closeResSb() { if(_rSb)_rSb.classList.remove("open"); if(_rOv)_rOv.classList.remove("show"); }
-if(_rHam) _rHam.onclick = function(){ _rSb&&_rSb.classList.contains("open") ? closeResSb() : openResSb(); };
+var _rTools = document.createElement("div");
+_rTools.className = "sidebar-layout-tools";
+var _rBrand = _rSb ? _rSb.querySelector(".sidebar-brand") : null;
+function putResToggleOutside(){ if(_rHam){_rTools.appendChild(_rHam);document.querySelector(".res-main")?.prepend(_rTools);} }
+function putResToggleInside(){ if(_rBrand && _rHam)_rBrand.appendChild(_rHam); }
+if(window.innerWidth <= 768) putResToggleOutside(); else putResToggleInside();
+function openResSb()  { if(_rSb)_rSb.classList.add("open");  if(_rOv)_rOv.classList.add("show"); putResToggleInside(); }
+function closeResSb() { if(_rSb)_rSb.classList.remove("open"); if(_rOv)_rOv.classList.remove("show"); putResToggleOutside(); }
+if(_rHam) _rHam.onclick = function(){
+  if(window.innerWidth > 768){ var hidden=document.getElementById("appRoot").classList.toggle("sidebar-collapsed"); hidden?putResToggleOutside():putResToggleInside(); return; }
+  _rSb&&_rSb.classList.contains("open") ? closeResSb() : openResSb();
+};
 if(_rOv)  _rOv.onclick  = closeResSb;
 document.addEventListener("keydown", function(e){ if(e.key==="Escape") closeResSb(); });
 </script>

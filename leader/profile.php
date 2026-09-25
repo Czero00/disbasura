@@ -203,5 +203,6 @@ $photo     = !empty($user['profile_photo']) ? '/disbasura/uploads/' . $user['pro
     </div>
   </main>
 </div>
+<script src="/disbasura/assets/js/sidebar-toggle.js"></script>
 </body>
 </html>

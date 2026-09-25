@@ -151,5 +151,6 @@ function refreshTrucks(){
 refreshTrucks();
 setInterval(refreshTrucks, 15000);
 </script>
+<script src="/disbasura/assets/js/sidebar-toggle.js"></script>
 </body>
 </html>

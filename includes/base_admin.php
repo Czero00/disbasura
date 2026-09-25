@@ -57,7 +57,10 @@ function render_admin_header(string $active = '', int $unread = 0, string $title
         ? '<img src="/disbasura/uploads/'.e($admin_photo).'" alt="" style="width:36px;height:36px;border-radius:50%;object-fit:cover;border:2px solid rgba(255,255,255,.25);flex-shrink:0"/>'
         : '<div class="avatar" style="flex-shrink:0">'.$initial.'</div>';
 
-    $prefs = function_exists('get_preferences') ? get_preferences($_SESSION['admin_id'] ?? 0) : ['dark_mode'=>0];
+    // Administrators live in their own table, so use a negative preference key
+    // to keep their settings separate from resident/leader user IDs.
+    $admin_pref_id = -abs((int)($_SESSION['admin_id'] ?? 0));
+    $prefs = function_exists('get_preferences') ? get_preferences($admin_pref_id) : ['dark_mode'=>0];
     $dark  = $prefs['dark_mode'] ? 'data-dark="1"' : '';
 
     echo '<!DOCTYPE html>
@@ -70,7 +73,8 @@ function render_admin_header(string $active = '', int $unread = 0, string $title
   <link rel="stylesheet" href="/disbasura/assets/css/dashboard.css"/>
   <style>
     /* ── Hamburger — position:fixed top-left, same as resident panel ── */
-    .mob-toggle{display:none;flex-direction:column;justify-content:center;gap:5px;position:fixed;top:12px;left:12px;z-index:1000;width:40px;height:40px;padding:7px;background:#2d8653;border:none;border-radius:10px;cursor:pointer;box-shadow:0 3px 10px rgba(45,134,83,.45)}
+    .mob-toggle{display:flex;flex-direction:column;justify-content:center;gap:4px;position:static;z-index:1000;width:32px;height:32px;padding:6px;background:#2d8653;border:none;border-radius:8px;cursor:pointer;box-shadow:0 2px 7px rgba(45,134,83,.22);flex-shrink:0}
+    .sidebar-brand .mob-toggle{margin-left:auto}
     .mob-toggle span{display:block;width:100%;height:2.5px;background:#fff;border-radius:2px;transition:all .25s ease}
     /* ── Overlay ── */
     .mob-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.52);z-index:998;cursor:pointer}
@@ -78,7 +82,7 @@ function render_admin_header(string $active = '', int $unread = 0, string $title
     /* ── Mobile breakpoint ── */
     @media(max-width:768px){
       .mob-toggle{display:flex!important}
-      .topbar{padding:.65rem 1rem .65rem 62px!important;gap:.65rem}
+      .topbar{padding:.65rem 1rem!important;gap:.65rem}
       .sidebar{position:fixed!important;left:-270px;top:0;height:100vh;z-index:999;transition:left .3s cubic-bezier(.4,0,.2,1);box-shadow:none;overflow-y:auto}
       .sidebar.open{left:0!important;box-shadow:6px 0 30px rgba(0,0,0,.4)}
       .main{width:100%!important;margin-left:0!important}
@@ -207,13 +211,20 @@ function render_admin_footer(): void {
 (function() {
   var _sb = document.getElementById("sidebar");
   var _ov = document.getElementById("mobOverlay");
+  var _btn = document.getElementById("mobToggle");
+  var _brand = _sb ? _sb.querySelector(".sidebar-brand") : null;
+  var _topbar = document.querySelector(".topbar");
+  function moveToggleOutside(){ if(_topbar && _btn) _topbar.insertBefore(_btn,_topbar.firstChild); }
+  function moveToggleInside(){ if(_brand && _btn) _brand.appendChild(_btn); }
 
   function initMobileMenu() {
     if (window.innerWidth <= 768) {
       if (_sb) { _sb.classList.remove("open"); _sb.style.left = "-270px"; }
       if (_ov) { _ov.classList.remove("active"); _ov.style.display = "none"; }
+      moveToggleOutside();
     } else {
       if (_sb) { _sb.classList.add("open"); _sb.style.left = "0"; }
+      if (!document.getElementById("appRoot").classList.contains("sidebar-collapsed")) moveToggleInside();
     }
   }
 
@@ -223,13 +234,19 @@ function render_admin_footer(): void {
   window.openSidebar = function() {
     if (_sb) { _sb.classList.add("open"); _sb.style.left = "0"; }
     if (_ov) { _ov.classList.add("active"); _ov.style.display = "block"; }
+    moveToggleInside();
   };
   window.closeSidebar = function() {
     if (_sb) { _sb.classList.remove("open"); _sb.style.left = "-270px"; }
     if (_ov) { _ov.classList.remove("active"); _ov.style.display = "none"; }
+    moveToggleOutside();
   };
   window.toggleSidebar = function() {
-    if (_sb && _sb.classList.contains("open")) { closeSidebar(); } else { openSidebar(); }
+    if (window.innerWidth > 768) {
+      var hidden = document.getElementById("appRoot").classList.toggle("sidebar-collapsed");
+      if (hidden) moveToggleOutside(); else moveToggleInside();
+      if (_btn) { _btn.setAttribute("aria-expanded", String(!hidden)); _btn.setAttribute("aria-label", hidden ? "Show sidebar" : "Hide sidebar"); }
+    } else if (_sb && _sb.classList.contains("open")) { closeSidebar(); } else { openSidebar(); }
   };
 
   document.addEventListener("keydown", function(e){ if(e.key === "Escape") closeSidebar(); });
@@ -237,8 +254,15 @@ function render_admin_footer(): void {
 
 // Dark mode
 function toggleDark(){
-  fetch("/disbasura/api/preferences.php",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({toggle_dark:1})})
-    .then(()=>location.reload());
+  const button = document.getElementById("darkBtn");
+  if (button) button.disabled = true;
+  fetch("/disbasura/api/preferences.php",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({toggle_dark:1,scope:"admin"})})
+    .then(response=>response.json().then(data=>({ok:response.ok,data})))
+    .then(result=>{
+      if(!result.ok || !result.data.ok) throw new Error(result.data.error || "Could not save theme preference.");
+      location.reload();
+    })
+    .catch(error=>{if(button)button.disabled=false;alert(error.message || "Could not change the theme. Please try again.");});
 }
 // Notification poll
 (function poll(){

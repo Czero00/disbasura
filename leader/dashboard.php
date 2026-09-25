@@ -102,5 +102,6 @@ $initial   = strtoupper(substr($_SESSION['full_name'],0,1));
     </footer>
   </main>
 </div>
+<script src="/disbasura/assets/js/sidebar-toggle.js"></script>
 </body>
 </html>

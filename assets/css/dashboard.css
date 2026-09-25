@@ -34,7 +34,7 @@
   overflow-y: auto;
   overflow-x: hidden;
   scrollbar-width: none;
-  transition: width .28s cubic-bezier(.4,0,.2,1);
+  transition: width .32s cubic-bezier(.22,1,.36,1), flex-basis .32s cubic-bezier(.22,1,.36,1), padding .32s ease, opacity .2s ease, border-color .32s ease;
 }
 .sidebar::-webkit-scrollbar { display: none; }
 
@@ -441,8 +441,43 @@
    ============================================= */
 
 .sidebar-collapsed .sidebar {
-  display: none !important;
+  display: flex !important;
+  width: 0 !important;
+  flex: 0 0 0 !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+  border-right-width: 0 !important;
+  opacity: 0;
+  pointer-events: none;
 }
+.res-sidebar { transition: width .32s cubic-bezier(.22,1,.36,1), flex-basis .32s cubic-bezier(.22,1,.36,1), opacity .2s ease, border-color .32s ease; }
+.sidebar-collapsed .res-sidebar {
+  width: 0 !important;
+  flex: 0 0 0 !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+  border-right-width: 0 !important;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* One-click hide/show control used by every dashboard with a side panel. */
+.sidebar-layout-toggle {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; flex: 0 0 32px; padding:4px;
+  border: 1px solid var(--border, #dce8e1); border-radius: 10px;
+  background: var(--bg-card, #fff); color: var(--text-dark, #1a2e22);
+  cursor: pointer; box-shadow: 0 2px 7px rgba(15,40,25,.08);
+}
+.sidebar-layout-toggle:hover { color: var(--green-main, #2d8653); border-color: var(--green-main, #2d8653); }
+.sidebar-layout-toggle, .mob-toggle, .res-ham-btn { transition: transform .18s ease, box-shadow .18s ease, background-color .18s ease, border-color .18s ease, color .18s ease; }
+.sidebar-layout-toggle:hover, .mob-toggle:hover, .res-ham-btn:hover { transform: translateY(-1px); box-shadow: 0 5px 12px rgba(15,40,25,.17); }
+.sidebar-layout-toggle:active, .mob-toggle:active, .res-ham-btn:active { transform: scale(.94); }
+.sidebar-layout-toggle:focus-visible, .mob-toggle:focus-visible, .res-ham-btn:focus-visible { outline: 3px solid rgba(45,134,83,.35); outline-offset: 2px; }
+.sidebar-layout-toggle svg { width: 20px; height: 20px; }
+.sidebar-brand .sidebar-layout-toggle { margin-left:auto; box-shadow:none; }
+.sidebar-layout-tools { display:flex; align-items:center; min-height:40px; margin-bottom:.75rem; }
+.sidebar-layout-tools:empty { display:none; }
 
 
 /* Tooltip on hover when collapsed */
@@ -916,6 +951,11 @@
     left: 0 !important;
     box-shadow: 6px 0 32px rgba(0,0,0,.45);
   }
+
+  .sidebar-collapsed .res-sidebar,
+  .sidebar-collapsed .sidebar { display:flex !important; }
+  .sidebar-collapsed .res-sidebar:not(.open),
+  .sidebar-collapsed .sidebar:not(.open) { left:-280px !important; }
 
   /* Main areas take full width */
   .main     { width: 100% !important; }
