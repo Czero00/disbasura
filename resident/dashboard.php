@@ -87,11 +87,30 @@ $upcoming_schedules->execute([$sitio]); $upcoming_schedules = $upcoming_schedule
 $schedules = $db->prepare("SELECT s.*,c.full_name as collector_name FROM schedules s LEFT JOIN collectors c ON s.collector_id=c.id WHERE s.sitio=? AND DATE(s.scheduled_at)<CURDATE() AND DATE(s.scheduled_at)>=DATE_SUB(CURDATE(),INTERVAL 30 DAY) ORDER BY s.scheduled_at DESC LIMIT 15");
 $schedules->execute([$sitio]); $schedules = $schedules->fetchAll();
 
-$my_dispute_ids = $db->prepare("SELECT schedule_id FROM disputes WHERE user_id=?");
-$my_dispute_ids->execute([$uid]); $my_dispute_ids = array_column($my_dispute_ids->fetchAll(),'schedule_id');
+$disputeHasUserId = (bool)$db->query("SHOW COLUMNS FROM disputes LIKE 'user_id'")->fetch();
+if ($disputeHasUserId) {
+    $my_dispute_ids = $db->prepare("SELECT schedule_id FROM disputes WHERE user_id=?");
+    $my_dispute_ids->execute([$uid]);
+} else {
+    // Legacy dispute tables cannot distinguish which resident filed a dispute.
+    $my_dispute_ids = $db->query('SELECT schedule_id FROM disputes');
+}
+$my_dispute_ids = array_column($my_dispute_ids->fetchAll(),'schedule_id');
 
-$my_feedback_ids = $db->prepare("SELECT schedule_id FROM feedback WHERE user_id=?");
-$my_feedback_ids->execute([$uid]); $my_feedback_ids = array_column($my_feedback_ids->fetchAll(),'schedule_id');
+$feedbackColumns = array_column($db->query('SHOW COLUMNS FROM feedback')->fetchAll(), 'Field');
+$feedbackUserColumn = null;
+foreach (['user_id', 'rated_by', 'resident_id'] as $candidate) {
+    if (in_array($candidate, $feedbackColumns, true)) { $feedbackUserColumn = $candidate; break; }
+}
+if ($feedbackUserColumn) {
+    $my_feedback_ids = $db->prepare("SELECT schedule_id FROM feedback WHERE `$feedbackUserColumn`=?");
+    $my_feedback_ids->execute([$uid]);
+} else {
+    // Legacy feedback tables without a resident reference can only store one
+    // rating per schedule, so treat those schedules as already rated.
+    $my_feedback_ids = $db->query('SELECT schedule_id FROM feedback');
+}
+$my_feedback_ids = array_column($my_feedback_ids->fetchAll(),'schedule_id');
 
 $unread = get_unread_count($uid);
 
@@ -128,7 +147,8 @@ $dark = $prefs['dark_mode'] ? 'dark' : '';
     /* ── Sidebar ── */
     .res-sidebar{width:240px;flex-shrink:0;background:#fff;border-right:1px solid #e4ede8;display:flex;flex-direction:column;position:sticky;top:0;height:100vh;overflow-y:auto}
     .sidebar-brand{padding:1.5rem 1.25rem 1rem;border-bottom:1px solid #e4ede8}
-    .sidebar-brand-inner{display:flex;align-items:center;gap:.65rem}
+    .sidebar-brand-inner{display:flex;align-items:center;gap:.65rem;width:100%}
+    .sidebar-brand-inner>div{flex:1;min-width:0}
     .sidebar-logo{width:36px;height:36px;background:linear-gradient(135deg,#1e5c38,#2d8653);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0}
     .sidebar-brand h2{font-size:1rem;font-weight:800;color:#1a3a2a;line-height:1.1}
     .sidebar-brand p{font-size:.7rem;color:#7aab8a;margin-top:.1rem}
@@ -197,7 +217,9 @@ $dark = $prefs['dark_mode'] ? 'dark' : '';
 
     /* Responsive */
     /* Ham btn — hidden on desktop, shown on mobile via media query */
-    .res-ham-btn{display:flex;flex-direction:column;justify-content:center;gap:4px;width:32px;height:32px;padding:6px;background:#2d8653;border:none;border-radius:8px;cursor:pointer;box-shadow:0 2px 7px rgba(45,134,83,.22);flex-shrink:0}
+    .res-ham-btn{display:flex;flex-direction:column;justify-content:center;gap:4px;position:static;z-index:1000;width:32px;height:32px;padding:6px;background:#2d8653;border:none;border-radius:8px;cursor:pointer;box-shadow:0 2px 7px rgba(45,134,83,.22);flex-shrink:0;margin-left:auto;margin-right:.2rem}
+    .sidebar-brand-inner .res-ham-btn{margin-left:0;margin-right:0}
+    .sidebar-layout-tools .res-ham-btn{margin-left:.5rem;margin-right:0}
     .res-ham-btn span{display:block;width:100%;height:2.5px;background:#fff;border-radius:2px}
     /* Resident overlay */
     .res-mob-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.52);z-index:199;cursor:pointer}
@@ -503,7 +525,7 @@ $dark = $prefs['dark_mode'] ? 'dark' : '';
 </div><!-- /.res-layout -->
 <!-- Mobile overlay + hamburger at root level -->
 <div class="res-mob-overlay" id="resMobOverlay"></div>
-<button class="res-ham-btn" id="resHamBtn" aria-label="Open menu">
+<button class="mob-toggle res-ham-btn" id="resHamBtn" aria-label="Open menu" aria-expanded="true">
   <span></span><span></span><span></span>
 </button>
 
@@ -692,13 +714,22 @@ var _rOv  = document.getElementById("resMobOverlay");
 var _rTools = document.createElement("div");
 _rTools.className = "sidebar-layout-tools";
 var _rBrand = _rSb ? _rSb.querySelector(".sidebar-brand") : null;
+var _rBrandInner = _rBrand ? _rBrand.querySelector(".sidebar-brand-inner") : null;
+var _rRoot = document.querySelector(".res-layout");
 function putResToggleOutside(){ if(_rHam){_rTools.appendChild(_rHam);document.querySelector(".res-main")?.prepend(_rTools);} }
-function putResToggleInside(){ if(_rBrand && _rHam)_rBrand.appendChild(_rHam); }
+function putResToggleInside(){ if(_rBrandInner && _rHam)_rBrandInner.appendChild(_rHam); }
 if(window.innerWidth <= 768) putResToggleOutside(); else putResToggleInside();
 function openResSb()  { if(_rSb)_rSb.classList.add("open");  if(_rOv)_rOv.classList.add("show"); putResToggleInside(); }
 function closeResSb() { if(_rSb)_rSb.classList.remove("open"); if(_rOv)_rOv.classList.remove("show"); putResToggleOutside(); }
 if(_rHam) _rHam.onclick = function(){
-  if(window.innerWidth > 768){ var hidden=document.getElementById("appRoot").classList.toggle("sidebar-collapsed"); hidden?putResToggleOutside():putResToggleInside(); return; }
+  if(window.innerWidth > 768){
+    var hidden=_rRoot.classList.toggle("sidebar-collapsed");
+    if(_rSb) _rSb.style.display = hidden ? "none" : "";
+    _rHam.setAttribute("aria-expanded", String(!hidden));
+    _rHam.setAttribute("aria-label", hidden ? "Show sidebar" : "Hide sidebar");
+    hidden ? putResToggleOutside() : putResToggleInside();
+    return;
+  }
   _rSb&&_rSb.classList.contains("open") ? closeResSb() : openResSb();
 };
 if(_rOv)  _rOv.onclick  = closeResSb;

@@ -452,6 +452,7 @@
 }
 .res-sidebar { transition: width .32s cubic-bezier(.22,1,.36,1), flex-basis .32s cubic-bezier(.22,1,.36,1), opacity .2s ease, border-color .32s ease; }
 .sidebar-collapsed .res-sidebar {
+  display: none !important;
   width: 0 !important;
   flex: 0 0 0 !important;
   padding-left: 0 !important;
