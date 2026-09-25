@@ -94,7 +94,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 if (isset($_GET['ok']))  $success = 'Changes saved.';
 if (isset($_GET['err'])) $error   = htmlspecialchars($_GET['err']);
 
-$unread = get_unread_count($uid);
+$unread = get_unread_admin_count($uid);
 $initial = strtoupper(substr($user['full_name'], 0, 1));
 $photo   = !empty($user['profile_photo']) ? '/disbasura/uploads/' . $user['profile_photo'] : null;
 

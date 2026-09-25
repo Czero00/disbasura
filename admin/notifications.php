@@ -3,13 +3,15 @@ require_once __DIR__ . '/../middleware/admin_auth.php';
 require_once __DIR__ . '/../includes/helpers.php';
 require_once __DIR__ . '/../includes/base_admin.php';
 $db = get_db();
-$unread_before = $db->prepare("SELECT COUNT(*) FROM notifications WHERE user_id=? AND is_read=0");
-$unread_before->execute([$_SESSION['admin_id']]);
+$aid = (int)$_SESSION['admin_id'];
+ensure_admin_notifications_table($db);
+$unread_before = $db->prepare("SELECT COUNT(*) FROM admin_notifications WHERE admin_id=? AND is_read=0");
+$unread_before->execute([$aid]);
 $unread_before = (int)$unread_before->fetchColumn();
-$notifs = $db->prepare("SELECT * FROM notifications WHERE user_id=? ORDER BY created_at DESC");
-$notifs->execute([$_SESSION['admin_id']]);
+$notifs = $db->prepare("SELECT * FROM admin_notifications WHERE admin_id=? ORDER BY created_at DESC");
+$notifs->execute([$aid]);
 $notifs = $notifs->fetchAll();
-$db->prepare("UPDATE notifications SET is_read=1 WHERE user_id=?")->execute([$_SESSION['admin_id']]);
+$db->prepare("UPDATE admin_notifications SET is_read=1 WHERE admin_id=?")->execute([$aid]);
 render_admin_header('notifications',0,'Notifications — DisBasura Admin');
 ?>
 <div class="page-header"><h1>Notifications</h1><p><?= $unread_before ?> unread notification<?= $unread_before!=1?'s':'' ?></p></div>

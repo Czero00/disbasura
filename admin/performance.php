@@ -24,7 +24,7 @@ $collectors = $db->query("
     ORDER BY total_completed DESC
 ")->fetchAll();
 
-$unread = get_unread_count($_SESSION['admin_id']);
+$unread = get_unread_admin_count($_SESSION['admin_id']);
 render_admin_header('performance', $unread, 'Collector Performance — DisBasura');
 ?>
 <div class="page-header">

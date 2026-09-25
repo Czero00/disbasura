@@ -110,8 +110,15 @@ document.getElementById('reqProofViewModal').addEventListener('click', function 
 });
 
 /* ── GPS Tracking ────────────────────────────────────────── */
-var gpsInterval = null;
-var tracking    = false;
+var gpsWatchId = null;
+var tracking = false;
+var gpsOutOfArea = false;
+
+// Broad Cebu City service-area guard. It prevents clearly wrong readings
+// (such as Leyte) from being published; the GPS coordinates remain device-based.
+function isInsideCebuCityArea(lat, lng) {
+  return lat >= 10.15 && lat <= 10.52 && lng >= 123.70 && lng <= 124.12;
+}
 
 function toggleGPS() {
   tracking ? stopGPS() : startGPS();
@@ -123,39 +130,102 @@ function startGPS() {
     return;
   }
   tracking = true;
+  gpsOutOfArea = false;
   document.getElementById('gpsBtn').textContent = 'Stop Tracking';
   document.getElementById('gpsBtn').classList.add('active');
   document.getElementById('gpsDot').classList.remove('off');
-  sendLocation();
-  gpsInterval = setInterval(sendLocation, 15000);
+  document.getElementById('gpsStatus').textContent = 'Waiting for an accurate GPS fix…';
+  clearSharedLocation().then(function () {
+    if (!tracking) return;
+    gpsWatchId = navigator.geolocation.watchPosition(updateLocation, showLocationError, {
+      enableHighAccuracy: true,
+      maximumAge: 0,
+      timeout: 30000
+    });
+  }).catch(function () {
+    document.getElementById('gpsStatus').textContent = 'Could not connect to the tracker. Refresh and sign in again.';
+    resetGPSButton();
+  });
 }
 
 function stopGPS() {
   tracking = false;
-  clearInterval(gpsInterval);
-  document.getElementById('gpsBtn').textContent = 'Start Tracking';
-  document.getElementById('gpsBtn').classList.remove('active');
-  document.getElementById('gpsDot').classList.add('off');
+  if (gpsWatchId !== null) navigator.geolocation.clearWatch(gpsWatchId);
+  gpsWatchId = null;
+  clearSharedLocation();
+  resetGPSButton();
   document.getElementById('gpsStatus').textContent = 'Tracking stopped.';
 }
 
-function sendLocation() {
-  navigator.geolocation.getCurrentPosition(
-    function (pos) {
-      var lat = pos.coords.latitude;
-      var lng = pos.coords.longitude;
-      fetch('/disbasura/api/collector-gps.php', {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ lat: lat, lng: lng })
-      });
-      document.getElementById('gpsStatus').textContent =
-        '📍 ' + lat.toFixed(5) + ', ' + lng.toFixed(5) +
-        ' · ' + new Date().toLocaleTimeString();
-    },
-    function () {
-      document.getElementById('gpsStatus').textContent =
-        'Could not get location — check GPS permissions.';
-    }
-  );
+function resetGPSButton() {
+  tracking = false;
+  if (gpsWatchId !== null && navigator.geolocation) navigator.geolocation.clearWatch(gpsWatchId);
+  gpsWatchId = null;
+  document.getElementById('gpsBtn').textContent = 'Start Tracking';
+  document.getElementById('gpsBtn').classList.remove('active');
+  document.getElementById('gpsDot').classList.add('off');
 }
+
+function clearSharedLocation() {
+  return fetch('/disbasura/api/collector-gps.php', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ active: false }),
+    keepalive: true
+  }).then(function (response) {
+    if (!response.ok) throw new Error('Location service unavailable.');
+  });
+}
+
+function updateLocation(pos) {
+  if (!tracking) return;
+  var lat = pos.coords.latitude;
+  var lng = pos.coords.longitude;
+  var accuracy = pos.coords.accuracy;
+  if (accuracy > 100) {
+    var accuracyText = accuracy >= 1000
+      ? (accuracy / 1000).toFixed(1) + ' km'
+      : Math.round(accuracy) + ' m';
+    document.getElementById('gpsStatus').textContent =
+      accuracy >= 1000
+        ? 'Your computer/browser only reports an approximate location (±' + accuracyText + '). Turn on Windows Location services, allow location for localhost, then restart tracking. No truck is shown until the location is precise.'
+        : 'GPS accuracy is about ±' + accuracyText + '. Waiting for a clearer GPS fix (100 m or better).';
+    return;
+  }
+  if (!isInsideCebuCityArea(lat, lng)) {
+    if (!gpsOutOfArea) clearSharedLocation();
+    gpsOutOfArea = true;
+    document.getElementById('gpsStatus').textContent =
+      'Your device reports ' + lat.toFixed(5) + ', ' + lng.toFixed(5) + ' outside the Cebu City service area. Location not shared.';
+    return;
+  }
+  gpsOutOfArea = false;
+  fetch('/disbasura/api/collector-gps.php', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ lat: lat, lng: lng, accuracy: accuracy })
+  }).then(function (response) {
+    if (response.ok) return;
+    return response.json().catch(function () { return {}; }).then(function (body) {
+      throw new Error(body.error || 'Location update failed (' + response.status + ').');
+    });
+  }).then(function () {
+    document.getElementById('gpsStatus').textContent =
+      '📍 ' + lat.toFixed(6) + ', ' + lng.toFixed(6) + ' · accuracy ±' + Math.round(accuracy) + ' m · Updated ' + new Date().toLocaleTimeString();
+  }).catch(function (error) {
+    document.getElementById('gpsStatus').textContent = error.message || 'Could not share your location.';
+  });
+}
+
+function showLocationError(error) {
+  var message = error && error.code === error.PERMISSION_DENIED
+    ? 'Location permission is blocked. Allow location access in your browser.'
+    : 'Could not get GPS location. Check device GPS and browser location permissions.';
+  document.getElementById('gpsStatus').textContent = message;
+}
+
+window.addEventListener('pagehide', function () {
+  if (!tracking) return;
+  var body = new Blob([JSON.stringify({ active: false })], { type: 'application/json' });
+  navigator.sendBeacon('/disbasura/api/collector-gps.php', body);
+});

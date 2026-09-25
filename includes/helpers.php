@@ -43,6 +43,30 @@ function get_unread_count(int $user_id): int {
     return (int)$s->fetchColumn();
 }
 
+function ensure_admin_notifications_table(PDO $db): void {
+    static $ready = false;
+    if ($ready) return;
+    $db->exec("CREATE TABLE IF NOT EXISTS admin_notifications (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        admin_id INT NOT NULL,
+        title VARCHAR(100) NOT NULL DEFAULT 'Admin Alert',
+        message TEXT NOT NULL,
+        is_read TINYINT NOT NULL DEFAULT 0,
+        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_admin_notifications_unread (admin_id, is_read, created_at),
+        CONSTRAINT fk_admin_notifications_admin FOREIGN KEY (admin_id) REFERENCES administrators(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+    $ready = true;
+}
+
+function get_unread_admin_count(int $admin_id): int {
+    $db = get_db();
+    ensure_admin_notifications_table($db);
+    $s = $db->prepare('SELECT COUNT(*) FROM admin_notifications WHERE admin_id = ? AND is_read = 0');
+    $s->execute([$admin_id]);
+    return (int)$s->fetchColumn();
+}
+
 function notify_user(PDO $db, int $user_id, string $message, string $title = 'Notification'): void {
     $db->prepare("INSERT INTO notifications (user_id,title,message,status,created_at) VALUES (?,?,?,?,?)")
        ->execute([$user_id, $title, $message, 'sent', now_pht()]);
@@ -63,9 +87,14 @@ function notify_all_sitio(PDO $db, string $sitio, string $message, string $title
 }
 
 function notify_all_admins(PDO $db, string $message, string $title = 'Admin Alert'): void {
-    $admins = $db->query("SELECT id FROM administrators")->fetchAll();
-    $ins = $db->prepare("INSERT INTO notifications (user_id,title,message,status,created_at) VALUES (?,?,?,?,?)");
-    foreach ($admins as $a) $ins->execute([$a['id'], $title, $message, 'sent', now_pht()]);
+    try {
+        ensure_admin_notifications_table($db);
+        $admins = $db->query('SELECT id FROM administrators')->fetchAll();
+        $ins = $db->prepare('INSERT INTO admin_notifications (admin_id,title,message,created_at) VALUES (?,?,?,?)');
+        foreach ($admins as $admin) $ins->execute([$admin['id'], $title, $message, now_pht()]);
+    } catch (Throwable $e) {
+        error_log('Could not create admin notification: ' . $e->getMessage());
+    }
 }
 
 // ── Activity Log ─────────────────────────────────────────────

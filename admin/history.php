@@ -35,7 +35,7 @@ $stmt->execute($params);
 $history = $stmt->fetchAll();
 
 $total   = count($history);
-$unread  = get_unread_count($_SESSION['admin_id']);
+$unread  = get_unread_admin_count($_SESSION['admin_id']);
 render_admin_header('history', $unread, 'Collection History — DisBasura');
 ?>
 <div class="page-header-row">

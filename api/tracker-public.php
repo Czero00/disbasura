@@ -17,6 +17,7 @@ if (!isset($_SESSION['user_id']) || !in_array($_SESSION['role'] ?? '', ['residen
 $db = get_db();
 $trucks = $db->query(
     "SELECT id, full_name, sitio, status, truck_lat, truck_lng, truck_updated_at
-     FROM collectors WHERE truck_lat IS NOT NULL"
+     FROM collectors WHERE truck_lat BETWEEN 10.15 AND 10.52
+       AND truck_lng BETWEEN 123.70 AND 124.12"
 )->fetchAll();
 echo json_encode($trucks);

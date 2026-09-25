@@ -71,7 +71,7 @@ $q = "SELECT r.*,u.full_name,s.full_name as submitted_by_name,c.full_name as col
 if ($status_filter) { $stmt=$db->prepare($q." WHERE r.status=? ORDER BY r.created_at DESC"); $stmt->execute([$status_filter]); }
 else { $stmt=$db->query($q." ORDER BY r.created_at DESC"); }
 $requests = $stmt->fetchAll();
-$unread = get_unread_count($_SESSION['admin_id']);
+$unread = get_unread_admin_count($_SESSION['admin_id']);
 render_admin_header('requests',$unread,'Requests — DisBasura Admin');
 ?>
 <div class="page-header"><h1>Pickup Requests</h1><p>Review and manage resident pickup requests</p></div>

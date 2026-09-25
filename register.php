@@ -3,7 +3,13 @@ require_once __DIR__ . '/config/session.php';
 require_once __DIR__ . '/config/db.php';
 require_once __DIR__ . '/includes/helpers.php';
 
-$cities = get_cities();
+$db = get_db();
+$cityStmt = $db->prepare('SELECT id FROM cities WHERE name = ? LIMIT 1');
+$cityStmt->execute(['Cebu City']);
+$cebuCityId = (int)$cityStmt->fetchColumn();
+$barangays = $cebuCityId
+    ? array_values(array_filter(get_barangays($cebuCityId), static fn($b) => strcasecmp($b['name'], 'Unassigned') !== 0))
+    : [];
 $error  = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -12,10 +18,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $email     = trim($_POST['email']     ?? '');
     $password  = trim($_POST['password']  ?? '');
     $sitio     = trim($_POST['sitio']     ?? '');
+    $barangayId = (int)($_POST['barangay_id'] ?? 0);
     $phone     = trim($_POST['phone']     ?? '');
 
-    if (!$full_name || !$username || !$email || !$password || !$sitio) {
+    $validBarangayIds = array_map('intval', array_column($barangays, 'id'));
+    $allowedSitios = in_array($barangayId, $validBarangayIds, true) ? get_sitios_by_barangay($barangayId) : [];
+    $allowedSitioNames = array_column($allowedSitios, 'name');
+
+    if (!$full_name || !$username || !$email || !$password || !$barangayId || !$sitio) {
         $error = 'Please fill in all required fields.';
+    } elseif (!in_array($barangayId, $validBarangayIds, true)) {
+        $error = 'Please choose a valid Cebu City barangay.';
+    } elseif (!in_array($sitio, $allowedSitioNames, true)) {
+        $error = 'Please choose a sitio in the selected barangay.';
     } elseif (strlen($password) < 6) {
         $error = 'Password must be at least 6 characters.';
     } elseif (!preg_match('/^[a-zA-Z0-9_]+$/', $username)) {
@@ -35,7 +50,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } else {
             $db->prepare("INSERT INTO users (full_name,username,email,password,role,sitio,phone) VALUES (?,?,?,?,?,?,?)")
                ->execute([$full_name,$username,$email,password_hash($password,PASSWORD_BCRYPT),'resident',$sitio,$phone]);
-            header('Location: /disbasura/login.php?registered=1'); exit;
+            header('Location: /disbasura/?registered=1&show_login=1#login'); exit;
         }
     }
 }
@@ -92,7 +107,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   </div>
   <div class="auth-card">
     <h2>Create Account</h2>
-    <p class="sub">Join your sitio's garbage collection system</p>
+    <p class="sub">Cebu City service area — choose your barangay and sitio to join.</p>
     <?php if ($error): ?><div class="alert-error"><?= htmlspecialchars($error) ?></div><?php endif; ?>
     <form method="POST">
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem">
@@ -106,67 +121,60 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <div class="field"><label>Password *</label><input type="password" name="password" required/></div>
         <div class="field"><label>Phone</label><input type="tel" name="phone" value="<?= htmlspecialchars($_POST['phone']??'') ?>" placeholder="09XX XXX XXXX"/></div>
       </div>
-      <div class="field"><label>City *</label>
-        <select id="citySelect" required>
-          <option value="">Select city</option>
-          <?php foreach ($cities as $c): ?>
-          <option value="<?= $c['id'] ?>"><?= htmlspecialchars($c['name']) ?></option>
+      <div class="field"><label for="barangaySelect">Barangay *</label>
+        <select name="barangay_id" id="barangaySelect" required>
+          <option value="">Select your barangay</option>
+          <?php foreach ($barangays as $barangay): ?>
+          <option value="<?= (int)$barangay['id'] ?>" <?= ((int)($_POST['barangay_id'] ?? 0) === (int)$barangay['id']) ? 'selected' : '' ?>><?= htmlspecialchars($barangay['name']) ?></option>
           <?php endforeach; ?>
         </select>
       </div>
-      <div class="field"><label>Barangay *</label>
-        <select id="barangaySelect" required disabled>
-          <option value="">Select city first</option>
-        </select>
-      </div>
-      <div class="field"><label>Sitio *</label>
-        <select name="sitio" id="sitioSelect" required disabled>
+      <div class="field"><label for="sitioSelect">Sitio *</label>
+        <select name="sitio" id="sitioSelect" data-selected="<?= htmlspecialchars($_POST['sitio'] ?? '', ENT_QUOTES, 'UTF-8') ?>" required disabled>
           <option value="">Select barangay first</option>
         </select>
       </div>
       <button type="submit" class="btn-primary">Create Account</button>
     </form>
-    <div class="auth-footer"><a href="/disbasura/login.php">← Already have an account? Sign in</a></div>
+    <div class="auth-footer"><a href="/disbasura/?show_login=1#login">← Already have an account? Sign in</a></div>
   </div>
   <div style="text-align:center;font-size:.72rem;color:#8baa96;margin-top:1rem;padding-bottom:1rem;line-height:1.7">
     <strong style="color:#6b9e7e">UC</strong> · Developed by <strong>DisBasura Capstone Project</strong> · 2026
   </div>
 </div>
 <script>
-const citySel = document.getElementById('citySelect');
-const brgySel = document.getElementById('barangaySelect');
-const sitioSel = document.getElementById('sitioSelect');
+const barangaySelect = document.getElementById('barangaySelect');
+const sitioSelect = document.getElementById('sitioSelect');
+const previouslySelectedSitio = sitioSelect.dataset.selected;
 
-citySel.addEventListener('change', function(){
-  brgySel.innerHTML = '<option value="">Loading…</option>';
-  brgySel.disabled = true;
-  sitioSel.innerHTML = '<option value="">Select barangay first</option>';
-  sitioSel.disabled = true;
-  if (!this.value) { brgySel.innerHTML = '<option value="">Select city first</option>'; return; }
-  fetch('/disbasura/api/geo.php?type=barangays&city_id=' + this.value)
-    .then(r => r.json())
-    .then(rows => {
-      brgySel.innerHTML = '<option value="">Select barangay</option>' +
-        rows.map(b => `<option value="${b.id}">${b.name}</option>`).join('');
-      brgySel.disabled = false;
-    });
-});
+function loadSitios(barangayId, selectedSitio = '') {
+  sitioSelect.replaceChildren(new Option(barangayId ? 'Loading sitios…' : 'Select barangay first', ''));
+  sitioSelect.disabled = true;
+  if (!barangayId) return;
 
-brgySel.addEventListener('change', function(){
-  sitioSel.innerHTML = '<option value="">Loading…</option>';
-  sitioSel.disabled = true;
-  if (!this.value) { sitioSel.innerHTML = '<option value="">Select barangay first</option>'; return; }
-  fetch('/disbasura/api/geo.php?type=sitios&barangay_id=' + this.value)
-    .then(r => r.json())
+  fetch('/disbasura/api/geo.php?type=sitios&barangay_id=' + encodeURIComponent(barangayId))
+    .then(response => {
+      if (!response.ok) throw new Error('Unable to load sitios');
+      return response.json();
+    })
     .then(rows => {
-      if (!rows.length) { sitioSel.innerHTML = '<option value="">No sitios in this barangay yet</option>'; return; }
-      sitioSel.innerHTML = '<option value="">Select sitio</option>' +
-        rows.map(s => `<option value="${s.name}">${s.name}</option>`).join('');
-      sitioSel.disabled = false;
+      sitioSelect.replaceChildren(new Option(rows.length ? 'Select your sitio' : 'No sitios in this barangay yet', ''));
+      rows.forEach(sitio => {
+        const option = new Option(sitio.name, sitio.name);
+        option.selected = sitio.name === selectedSitio;
+        sitioSelect.add(option);
+      });
+      sitioSelect.disabled = rows.length === 0;
+    })
+    .catch(() => {
+      sitioSelect.replaceChildren(new Option('Could not load sitios. Please try again.', ''));
+      sitioSelect.disabled = true;
     });
-});
-</script>
-<script>
+}
+
+barangaySelect.addEventListener('change', () => loadSitios(barangaySelect.value));
+if (barangaySelect.value) loadSitios(barangaySelect.value, previouslySelectedSitio);
+
 let usernameTimer;
 document.getElementById('usernameInput').addEventListener('input', function(){
   clearTimeout(usernameTimer);

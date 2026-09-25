@@ -439,6 +439,6 @@ $isDark = (int)($collector['dark_mode'] ?? 0);
 </div>
 
 <!-- ── Scripts ── -->
-<script src="/disbasura/assets/js/collector.js"></script>
+<script src="/disbasura/assets/js/collector.js?v=<?= (int)filemtime(__DIR__ . '/../assets/js/collector.js') ?>"></script>
 </body>
 </html>

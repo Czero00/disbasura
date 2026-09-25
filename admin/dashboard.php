@@ -26,7 +26,7 @@ foreach ($weekly_rows as $row) {
     }
 }
 $today_day = (new DateTime('now', new DateTimeZone('Asia/Manila')))->format('l');
-$unread    = get_unread_count($_SESSION['admin_id']);
+$unread    = get_unread_admin_count($_SESSION['admin_id']);
 
 // Handle add/delete sitio
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {

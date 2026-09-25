@@ -203,6 +203,18 @@ CREATE TABLE IF NOT EXISTS notifications (
 );
 
 -- ────────────────────────────────────────────────────────────
+-- Admin accounts are stored separately from resident accounts, so they use a
+-- dedicated notification table instead of notifications.user_id.
+CREATE TABLE IF NOT EXISTS admin_notifications (
+    id         INT AUTO_INCREMENT PRIMARY KEY,
+    admin_id   INT NOT NULL,
+    title      VARCHAR(100) NOT NULL DEFAULT 'Admin Alert',
+    message    TEXT NOT NULL,
+    is_read    TINYINT NOT NULL DEFAULT 0,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_admin_notifications_unread (admin_id, is_read, created_at),
+    FOREIGN KEY (admin_id) REFERENCES administrators(id) ON DELETE CASCADE
+);
 --  PASSWORD RESET CODES
 -- ────────────────────────────────────────────────────────────
 

@@ -1,18 +1,3 @@
-<?php
-require_once __DIR__ . '/config/session.php';
-
-// Keep signed-in users inside the correct application area.
-if (isset($_SESSION['admin_id']) && ($_SESSION['admin_role'] ?? '') === 'admin') {
-    header('Location: /disbasura/admin/dashboard.php'); exit;
-}
-if (isset($_SESSION['collector_id'])) {
-    header('Location: /disbasura/collector/dashboard.php'); exit;
-}
-if (isset($_SESSION['user_id'])) {
-    $role = $_SESSION['role'] ?? '';
-    header('Location: ' . ($role === 'leader' ? '/disbasura/leader/dashboard.php' : '/disbasura/resident/dashboard.php')); exit;
-}
-?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -44,6 +29,19 @@ if (isset($_SESSION['user_id'])) {
     .signup{padding:12px 26px;border-radius:999px;background:#087c5b;color:white;box-shadow:0 3px 8px #09291b18}
     .signup:hover,.button-primary:hover{background:#066b50}
     .menu-toggle{display:none;border:0;background:transparent;color:var(--ink);font-size:25px;cursor:pointer}
+    .login-modal{position:fixed;inset:0;z-index:30;display:none;place-items:center;padding:20px;background:rgba(7,25,31,.62);backdrop-filter:blur(5px)}
+    .login-modal.open{display:grid}
+    .login-dialog{position:relative;width:min(100%,440px);padding:34px;background:#fff;border:1px solid var(--line);border-radius:22px;box-shadow:0 24px 70px #061d183d}
+    .login-dialog h2{font-size:28px;margin-bottom:7px}
+    .login-dialog>p{color:var(--muted);font-size:14px;margin-bottom:24px}
+    .login-close{position:absolute;right:16px;top:14px;border:0;background:transparent;color:#64748b;font-size:27px;cursor:pointer}
+    .login-field{display:block;margin-top:16px;color:#33445e;font-size:13px;font-weight:700}
+    .login-field input{display:block;width:100%;height:48px;margin-top:7px;padding:0 14px;border:1px solid #d8e2e9;border-radius:10px;font:inherit;font-weight:400;outline:none}
+    .login-field input:focus{border-color:var(--green);box-shadow:0 0 0 3px #07845f20}
+    .login-submit{width:100%;height:49px;margin-top:22px;border:0;border-radius:10px;background:#07845f;color:white;font:inherit;font-weight:700;cursor:pointer}
+    .login-error{padding:10px 12px;border-radius:9px;background:#fff0f0;color:#b42318;font-size:13px;margin-bottom:12px}
+    .login-success{padding:10px 12px;border-radius:9px;background:#e9f8ef;color:#167347;font-size:13px;margin-bottom:12px}
+    body.modal-open{overflow:hidden}
     .hero{min-height:730px;background:#063d32;color:white;display:grid;place-items:center;text-align:center;padding:90px 24px;position:relative;overflow:hidden}
     .hero:before{content:"";position:absolute;inset:0;background-image:radial-gradient(rgba(126,231,190,.19) 1px,transparent 1px);background-size:24px 24px;opacity:.6;pointer-events:none}
     .hero-content{position:relative;max-width:790px}
@@ -107,7 +105,7 @@ if (isset($_SESSION['user_id'])) {
     </a>
     <button class="menu-toggle" aria-label="Toggle navigation" aria-expanded="false">☰</button>
     <nav class="nav-links" aria-label="Main navigation"><a href="#home">HOME</a><a href="#about">ABOUT US</a><a href="#services">SERVICE</a></nav>
-    <div class="nav-actions"><a class="login-link" href="/disbasura/login.php">Log in</a><a class="signup" href="/disbasura/register.php">Sign up</a></div>
+    <div class="nav-actions"><a class="login-link" href="#login" data-open-login>Sign in</a><a class="signup" href="/disbasura/register.php">Sign up</a></div>
   </div>
 </header>
 <main>
@@ -146,12 +144,35 @@ if (isset($_SESSION['user_id'])) {
     </div>
   </section>
 </main>
+<div class="login-modal" id="login-modal" aria-hidden="true">
+  <section class="login-dialog" role="dialog" aria-modal="true" aria-labelledby="login-title">
+    <button class="login-close" type="button" aria-label="Close sign in" data-close-login>&times;</button>
+    <h2 id="login-title">Sign in to DisBasura</h2>
+    <p>Use your account username and password. We’ll open the correct dashboard for your account.</p>
+    <?php if (!empty($_GET['registered'])): ?><div class="login-success">Account created successfully. Sign in to continue.</div><?php endif; ?>
+    <?php if (!empty($_GET['login_error'])): ?><div class="login-error"><?= htmlspecialchars($_GET['login_error'], ENT_QUOTES, 'UTF-8') ?></div><?php endif; ?>
+    <form method="post" action="/disbasura/login.php">
+      <label class="login-field">Username<input name="username" required autocomplete="username"></label>
+      <label class="login-field">Password<input type="password" name="password" required autocomplete="current-password"></label>
+      <button class="login-submit" type="submit">Sign in</button>
+    </form>
+  </section>
+</div>
 <footer><div class="container footer-row"><a class="footer-brand" href="#home"><span class="brand-mark"><svg viewBox="0 0 24 24" fill="none"><path d="M20 4c-7.6.3-12 2.7-12 7.1 0 2.5 1.8 4.1 4.2 4.1C17 15.2 20.6 10.5 20 4Z" stroke="currentColor" stroke-width="1.6"/><path d="M4 20c1-5.1 4-8.1 9-9.7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></span>DisBasura</a><p class="copyright">© 2026 DisBasura Capstone System. All rights reserved.</p><nav class="footer-links" aria-label="Footer navigation"><a href="#home">Home</a><a href="#about">About</a><a href="#services">Service</a></nav></div></footer>
 <script>
   const menuButton=document.querySelector('.menu-toggle');
   const navLinks=document.querySelector('.nav-links');
   menuButton.addEventListener('click',()=>{const open=navLinks.classList.toggle('open');menuButton.setAttribute('aria-expanded',String(open));});
   navLinks.addEventListener('click',event=>{if(event.target.closest('a')){navLinks.classList.remove('open');menuButton.setAttribute('aria-expanded','false');}});
+  const loginModal=document.getElementById('login-modal');
+  const openLogin=()=>{loginModal.classList.add('open');loginModal.setAttribute('aria-hidden','false');document.body.classList.add('modal-open');loginModal.querySelector('input').focus();};
+  const closeLogin=()=>{loginModal.classList.remove('open');loginModal.setAttribute('aria-hidden','true');document.body.classList.remove('modal-open');};
+  document.querySelectorAll('[data-open-login]').forEach(link=>link.addEventListener('click',event=>{event.preventDefault();openLogin();}));
+  document.querySelector('[data-close-login]').addEventListener('click',closeLogin);
+  loginModal.addEventListener('click',event=>{if(event.target===loginModal)closeLogin();});
+  document.addEventListener('keydown',event=>{if(event.key==='Escape'&&loginModal.classList.contains('open'))closeLogin();});
+  const query=new URLSearchParams(location.search);
+  if(query.has('show_login')||query.has('login_error')||query.has('registered'))openLogin();
 </script>
 </body>
 </html>

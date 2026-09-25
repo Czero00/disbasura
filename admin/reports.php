@@ -12,7 +12,7 @@ $data = [
     'requests_by_status' => $db->query("SELECT status,COUNT(*) as count FROM requests GROUP BY status")->fetchAll(),
     'waste_distribution' => $db->query("SELECT waste_type,COUNT(*) as count FROM schedules GROUP BY waste_type")->fetchAll(),
 ];
-$unread = get_unread_count($_SESSION['admin_id']);
+$unread = get_unread_admin_count($_SESSION['admin_id']);
 render_admin_header('reports',$unread,'Reports — DisBasura Admin');
 ?>
 <div class="page-header"><h1>System Reports</h1><p>Overview of system statistics</p></div>

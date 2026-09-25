@@ -30,7 +30,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $announcements = $db->query("SELECT a.*,ad.full_name FROM announcements a JOIN administrators ad ON a.created_by=ad.id ORDER BY a.created_at DESC")->fetchAll();
-$unread = get_unread_count($aid);
+$unread = get_unread_admin_count($aid);
 render_admin_header('announcements', $unread, 'Announcements — DisBasura');
 ?>
 <div class="page-header-row">

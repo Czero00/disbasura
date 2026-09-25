@@ -28,7 +28,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 $sitios_list = get_sitios();
 $collectors  = $db->query("SELECT c.*,COUNT(DISTINCT s.id) as schedule_count,COUNT(DISTINCT r.id) as request_count,SUM(CASE WHEN s.status='completed' THEN 1 ELSE 0 END) as completed_count FROM collectors c LEFT JOIN schedules s ON s.collector_id=c.id LEFT JOIN requests r ON r.collector_id=c.id GROUP BY c.id ORDER BY c.full_name")->fetchAll();
-$unread = get_unread_count($_SESSION['admin_id']);
+$unread = get_unread_admin_count($_SESSION['admin_id']);
 render_admin_header('collectors',$unread,'Collectors — DisBasura Admin');
 ?>
 <div class="page-header-row">

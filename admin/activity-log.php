@@ -22,7 +22,7 @@ $logs = $db->query("
     LEFT JOIN collectors c     ON l.actor_type='collector' AND l.actor_id=c.id
     ORDER BY l.created_at DESC LIMIT $limit OFFSET $offset
 ")->fetchAll();
-$unread = get_unread_count($aid);
+$unread = get_unread_admin_count($aid);
 render_admin_header('activity', $unread, 'Activity Log — DisBasura');
 
 $action_icons = [

@@ -3,8 +3,8 @@ require_once __DIR__ . '/../middleware/admin_auth.php';
 require_once __DIR__ . '/../includes/helpers.php';
 require_once __DIR__ . '/../includes/base_admin.php';
 $db = get_db();
-$trucks = $db->query("SELECT id,full_name,sitio,status,truck_lat,truck_lng,truck_updated_at FROM collectors WHERE truck_lat IS NOT NULL ORDER BY truck_updated_at DESC")->fetchAll();
-$unread = get_unread_count($_SESSION['admin_id']);
+$trucks = $db->query("SELECT id,full_name,sitio,status,truck_lat,truck_lng,truck_updated_at FROM collectors WHERE truck_lat BETWEEN 10.15 AND 10.52 AND truck_lng BETWEEN 123.70 AND 124.12 ORDER BY truck_updated_at DESC")->fetchAll();
+$unread = get_unread_admin_count($_SESSION['admin_id']);
 render_admin_header('tracker',$unread,'Live Truck Tracker — DisBasura Admin');
 ?>
 <div class="page-header-row">
@@ -39,25 +39,38 @@ render_admin_header('tracker',$unread,'Live Truck Tracker — DisBasura Admin');
   <?php endif; ?>
 </div>
 <script>
-const map=L.map('map').setView([10.7,122.9],13);
+const cebuCity=[10.3157,123.8854];
+const map=L.map('map').setView(cebuCity,12);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap contributors'}).addTo(map);
 const markers={};
 const truckIcon=L.divIcon({className:'',html:'<div style="background:#2d8653;color:#fff;border-radius:50%;width:36px;height:36px;display:flex;align-items:center;justify-content:center;font-size:1.2rem;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.25)">🚛</div>',iconSize:[36,36],iconAnchor:[18,18]});
 function formatPHT(raw){if(!raw)return'unknown';const d=new Date(raw.replace(' ','T'));return d.toLocaleTimeString('en-PH',{hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:true});}
+function escapeHtml(value){return String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));}
+function renderTruckList(trucks){
+  const list=document.getElementById('truckList');
+  if(!trucks.length){list.innerHTML='<div class="empty-state" style="grid-column:1/-1;padding:3rem"><p>No collectors are currently sharing their location.</p></div>';return;}
+  list.innerHTML=trucks.map(t=>'<div class="truck-card"><div class="truck-icon">🚛</div><div><strong style="display:block;font-size:.88rem;font-weight:700">'+escapeHtml(t.full_name)+'</strong><span style="display:block;font-size:.75rem;color:var(--text-light)">📍 '+escapeHtml(t.sitio)+'</span><span style="display:block;font-size:.75rem;color:var(--text-light)">'+(t.status==='available'?'✅ On Duty':(t.status==='sick'?'🤒 Sick':'⛔ Off Duty'))+'</span><span style="display:block;font-size:.72rem;color:var(--green-main)">Last ping: '+escapeHtml(formatPHT(t.truck_updated_at))+'</span></div></div>').join('');
+}
 function refreshTrucks(){
-  fetch('/disbasura/api/tracker.php')
-    .then(r=>r.json())
+  fetch('/disbasura/api/tracker.php',{cache:'no-store'})
+    .then(r=>{if(!r.ok)throw new Error('Tracker API returned '+r.status);return r.json();})
     .then(trucks=>{
+      trucks=trucks.filter(t=>Number.isFinite(Number(t.truck_lat))&&Number.isFinite(Number(t.truck_lng)));
+      renderTruckList(trucks);
+      const liveIds=new Set();
       trucks.forEach(t=>{
-        if(!t.truck_lat||!t.truck_lng)return;
-        const latlng=[t.truck_lat,t.truck_lng];
+        const lat=Number(t.truck_lat),lng=Number(t.truck_lng);
+        if(!Number.isFinite(lat)||!Number.isFinite(lng))return;
+        liveIds.add(String(t.id));
+        const latlng=[lat,lng];
         if(markers[t.id]){markers[t.id].setLatLng(latlng).bindPopup('<strong>'+t.full_name+'</strong><br>📍 '+t.sitio+'<br><small>Updated: '+formatPHT(t.truck_updated_at)+'</small>');}
         else{markers[t.id]=L.marker(latlng,{icon:truckIcon}).addTo(map).bindPopup('<strong>'+t.full_name+'</strong><br>📍 '+t.sitio+'<br><small>Updated: '+formatPHT(t.truck_updated_at)+'</small>');}
       });
+      Object.keys(markers).forEach(id=>{if(!liveIds.has(String(id))){map.removeLayer(markers[id]);delete markers[id];}});
       const pts=Object.values(markers).map(m=>m.getLatLng());
       if(pts.length>0)map.fitBounds(L.latLngBounds(pts),{padding:[40,40]});
       document.querySelectorAll('[data-ping]').forEach(el=>{el.textContent='Last ping: '+formatPHT(el.getAttribute('data-ping'));});
-    });
+    }).catch(error=>console.error('Could not refresh truck locations:',error));
 }
 refreshTrucks();
 setInterval(refreshTrucks,15000);

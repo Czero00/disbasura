@@ -2,8 +2,14 @@
 require_once __DIR__ . '/config/session.php';
 require_once __DIR__ . '/config/db.php';
 
-if (isset($_SESSION['user_id']) && in_array($_SESSION['role'] ?? '', ['resident','leader'])) {
-    header('Location: /disbasura/'.($_SESSION['role']==='leader'?'leader':'resident').'/dashboard.php'); exit;
+// The shared login form lives in the landing page modal. Keep this endpoint
+// for form submissions, but send direct visits back to that modal.
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    $query = ['show_login' => '1'];
+    if (!empty($_GET['registered'])) $query['registered'] = '1';
+    if (!empty($_GET['reset'])) $query['reset'] = '1';
+    header('Location: /disbasura/?'.http_build_query($query).'#login');
+    exit;
 }
 
 $error = '';
@@ -14,25 +20,62 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $username = trim($_POST['username'] ?? '');
     $password = $_POST['password'] ?? '';
     $db = get_db();
-    $stmt = $db->prepare("SELECT * FROM users WHERE username=? AND role IN ('resident','leader')");
+    $matches = [];
+
+    $stmt = $db->prepare('SELECT * FROM administrators WHERE username=? LIMIT 1');
     $stmt->execute([$username]);
-    $user = $stmt->fetch();
-    if ($user && password_verify($password, $user['password'])) {
-        $_SESSION['user_id']   = $user['id'];
-        $_SESSION['full_name'] = $user['full_name'];
-        $_SESSION['username']  = $user['username'];
-        $_SESSION['role']      = $user['role'];
-        $_SESSION['sitio']     = $user['sitio'] ?? '';
-        header('Location: /disbasura/'.($user['role']==='leader'?'leader':'resident').'/dashboard.php'); exit;
+    $account = $stmt->fetch();
+    if ($account && password_verify($password, $account['password'])) $matches[] = ['type'=>'admin','account'=>$account];
+
+    $stmt = $db->prepare('SELECT * FROM collectors WHERE username=? LIMIT 1');
+    $stmt->execute([$username]);
+    $account = $stmt->fetch();
+    if ($account && !empty($account['password']) && password_verify($password, $account['password'])) $matches[] = ['type'=>'collector','account'=>$account];
+
+    $stmt = $db->prepare("SELECT * FROM users WHERE username=? AND role IN ('resident','leader') LIMIT 1");
+    $stmt->execute([$username]);
+    $account = $stmt->fetch();
+    if ($account && password_verify($password, $account['password'])) $matches[] = ['type'=>'resident','account'=>$account];
+
+    if (count($matches) === 1) {
+        $type = $matches[0]['type'];
+        $account = $matches[0]['account'];
+        if ($type !== 'resident') {
+            // Auth areas use separate session cookies; switch to that account's session.
+            session_write_close();
+            session_name($type === 'admin' ? 'disbasura_admin' : 'disbasura_collector');
+            session_start();
+        }
+        session_regenerate_id(true);
+        if ($type === 'admin') {
+            $_SESSION['admin_id'] = $account['id'];
+            $_SESSION['admin_name'] = $account['full_name'];
+            $_SESSION['admin_user'] = $account['username'];
+            $_SESSION['admin_role'] = 'admin';
+            header('Location: /disbasura/admin/dashboard.php'); exit;
+        }
+        if ($type === 'collector') {
+            $_SESSION['collector_id'] = $account['id'];
+            $_SESSION['collector_name'] = $account['full_name'];
+            $_SESSION['collector_sitio'] = $account['sitio'];
+            header('Location: /disbasura/collector/dashboard.php'); exit;
+        }
+        $_SESSION['user_id'] = $account['id'];
+        $_SESSION['full_name'] = $account['full_name'];
+        $_SESSION['username'] = $account['username'];
+        $_SESSION['role'] = $account['role'];
+        $_SESSION['sitio'] = $account['sitio'] ?? '';
+        header('Location: /disbasura/'.($account['role']==='leader'?'leader':'resident').'/dashboard.php'); exit;
     }
-    $error = 'Invalid username or password.';
+    $error = count($matches) > 1 ? 'These credentials match more than one account. Please contact an administrator.' : 'Invalid username or password.';
+    header('Location: /disbasura/?login_error='.rawurlencode($error).'#login'); exit;
 }
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-  <title>Resident Login — DisBasura</title>
+  <title>Sign In — DisBasura</title>
   <link rel="stylesheet" href="/disbasura/assets/css/base.css"/>
   <link rel="stylesheet" href="/disbasura/assets/css/auth.css"/>
 </head>
@@ -127,7 +170,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       </div>
 
       <!-- Portal label -->
-      <span class="auth-portal-label resident">🏠 Resident Portal</span>
+      <span class="auth-portal-label resident">All Account Portal</span>
 
       <h2>Log In</h2>
 
@@ -166,9 +209,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       </form>
 
       <div class="auth-footer">
-        No account? <a href="/disbasura/register.php">Create one</a>
-        &nbsp;·&nbsp; <a href="/disbasura/admin/login.php">Admin</a>
-        &nbsp;·&nbsp; <a href="/disbasura/collector/login.php">Collector</a>
+        Resident? <a href="/disbasura/register.php">Create an account</a>
       </div>
 
     </div>

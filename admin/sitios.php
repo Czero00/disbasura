@@ -3,22 +3,14 @@ require_once __DIR__ . '/../middleware/admin_auth.php';
 require_once __DIR__ . '/../includes/helpers.php';
 require_once __DIR__ . '/../includes/base_admin.php';
 $db = get_db();
+$cebuCityStmt = $db->prepare('SELECT id FROM cities WHERE name = ? LIMIT 1');
+$cebuCityStmt->execute(['Cebu City']);
+$cebuCityId = (int)$cebuCityStmt->fetchColumn();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    if (isset($_POST['add_city'])) {
-        $name = trim($_POST['city_name'] ?? '');
-        if ($name) {
-            try {
-                $db->prepare("INSERT INTO cities (name) VALUES (?)")->execute([$name]);
-                $_SESSION['flash'] = "✅ City '$name' added.";
-                log_activity($_SESSION['admin_id'], 'Added City', $name);
-            } catch (Exception $e) { $_SESSION['flash_err'] = "City '$name' already exists."; }
-        }
-        header('Location: /disbasura/admin/sitios.php'); exit;
-    }
     if (isset($_POST['add_barangay'])) {
         $name = trim($_POST['barangay_name'] ?? '');
-        $cityId = (int)($_POST['city_id'] ?? 0);
+        $cityId = $cebuCityId;
         if ($name && $cityId) {
             try {
                 $db->prepare("INSERT INTO barangays (city_id,name) VALUES (?,?)")->execute([$cityId,$name]);
@@ -28,10 +20,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         header('Location: /disbasura/admin/sitios.php'); exit;
     }
+    if (isset($_POST['delete_barangay'])) {
+        $barangayId = (int)($_POST['barangay_id'] ?? 0);
+        $barangayStmt = $db->prepare("SELECT b.id, b.name FROM barangays b JOIN cities c ON c.id = b.city_id WHERE b.id = ? AND c.id = ? AND LOWER(b.name) <> 'unassigned' LIMIT 1");
+        $barangayStmt->execute([$barangayId, $cebuCityId]);
+        $barangay = $barangayStmt->fetch();
+
+        if (!$barangay) {
+            $_SESSION['flash_err'] = 'Barangay not found in Cebu City.';
+        } else {
+            $sitioCountStmt = $db->prepare('SELECT COUNT(*) FROM sitios WHERE barangay_id = ?');
+            $sitioCountStmt->execute([$barangayId]);
+            if ((int)$sitioCountStmt->fetchColumn() > 0) {
+                $_SESSION['flash_err'] = "Cannot delete '{$barangay['name']}' while it has sitios. Remove or move its sitios first.";
+            } else {
+                $db->prepare('DELETE FROM barangays WHERE id = ?')->execute([$barangayId]);
+                log_activity($_SESSION['admin_id'], 'Deleted Barangay', $barangay['name']);
+                $_SESSION['flash'] = "Barangay '{$barangay['name']}' deleted.";
+            }
+        }
+        header('Location: /disbasura/admin/sitios.php'); exit;
+    }
     if (isset($_POST['add_sitio'])) {
         $name = trim($_POST['name'] ?? '');
-        $barangayId = (int)($_POST['barangay_id'] ?? 0) ?: 1; // falls back to the seeded "Unassigned" barangay
-        if ($name) {
+        $barangayId = (int)($_POST['barangay_id'] ?? 0);
+        $validCebuBarangays = $cebuCityId ? array_filter(get_barangays($cebuCityId), static fn($b) => strcasecmp($b['name'], 'Unassigned') !== 0) : [];
+        $validBarangayIds = array_map('intval', array_column($validCebuBarangays, 'id'));
+        if ($name && in_array($barangayId, $validBarangayIds, true)) {
             try {
                 $db->prepare("INSERT INTO sitios (name,barangay_id) VALUES (?,?)")->execute([$name,$barangayId]);
                 $days = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
@@ -42,6 +57,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             } catch (Exception $e) {
                 $_SESSION['flash_err'] = "Sitio '$name' already exists.";
             }
+        } elseif ($name) {
+            $_SESSION['flash_err'] = 'Choose a barangay in Cebu City before adding a sitio.';
         }
         header('Location: /disbasura/admin/sitios.php'); exit;
     }
@@ -72,23 +89,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 $flash     = $_SESSION['flash'] ?? null;     unset($_SESSION['flash']);
 $flash_err = $_SESSION['flash_err'] ?? null; unset($_SESSION['flash_err']);
-$sitios    = $db->query("SELECT s.*, b.name AS barangay_name, c.name AS city_name, COUNT(DISTINCT u.id) as resident_count, COUNT(DISTINCT co.id) as collector_count
+$sitioStmt = $db->prepare("SELECT s.*, b.name AS barangay_name, c.name AS city_name, COUNT(DISTINCT u.id) as resident_count, COUNT(DISTINCT co.id) as collector_count
                           FROM sitios s
                           LEFT JOIN barangays b ON s.barangay_id=b.id
                           LEFT JOIN cities c ON b.city_id=c.id
                           LEFT JOIN users u ON u.sitio=s.name AND u.role IN ('resident','leader')
                           LEFT JOIN collectors co ON co.sitio=s.name
-                          GROUP BY s.id ORDER BY c.name, b.name, s.name")->fetchAll();
-$cities    = get_cities();
-$barangays = get_barangays();
-$unread    = get_unread_count($_SESSION['admin_id']);
+                          WHERE c.id = ?
+                          GROUP BY s.id ORDER BY b.name, s.name");
+$sitioStmt->execute([$cebuCityId]);
+$sitios = $sitioStmt->fetchAll();
+$barangays = $cebuCityId ? array_values(array_filter(get_barangays($cebuCityId), static fn($b) => strcasecmp($b['name'], 'Unassigned') !== 0)) : [];
+$unread    = get_unread_admin_count($_SESSION['admin_id']);
 
 render_admin_header('sitios', $unread, 'Sitios — DisBasura Admin');
 ?>
 <div class="page-header-row">
   <div class="page-header">
     <h1>📍 Manage Locations</h1>
-    <p>Cities → Barangays → Sitios. Sitios are required before adding residents or schedules.</p>
+    <p>Cebu City / Barangays / Sitios. Add each barangay, then create its sitios for residents and schedules.</p>
   </div>
   <button class="btn-add" onclick="document.getElementById('addModal').style.display='flex'">+ Add Sitio</button>
 </div>
@@ -98,48 +117,32 @@ render_admin_header('sitios', $unread, 'Sitios — DisBasura Admin');
 
 <!-- ── Cities & Barangays panel ── -->
 <div class="panel" style="margin-bottom:1.5rem">
-  <div class="panel-header"><h3>🏙️ Cities &amp; Barangays</h3></div>
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-top:1rem">
-    <div>
-      <form method="POST" style="display:flex;gap:.5rem;margin-bottom:.85rem">
-        <input type="hidden" name="add_city" value="1">
-        <input type="text" name="city_name" placeholder="New city name" required style="flex:1;border:1.5px solid var(--border);border-radius:8px;padding:.5rem .75rem;font-family:inherit"/>
-        <button type="submit" style="padding:.5rem 1rem;background:var(--green-main);color:#fff;border:none;border-radius:8px;font-weight:700;cursor:pointer">+ Add City</button>
-      </form>
-      <div style="font-size:.8rem;color:var(--text-mid)">
-        <?php foreach($cities as $c): ?>
-          <div style="padding:.3rem 0;border-bottom:1px solid var(--border-light)">🏙️ <?= e($c['name']) ?></div>
-        <?php endforeach; ?>
-        <?php if(!$cities): ?><em>No cities yet.</em><?php endif; ?>
+  <div class="panel-header"><h3>Barangays in Cebu City</h3></div>
+  <form method="POST" style="display:flex;gap:.5rem;margin:1rem 0 .85rem">
+    <input type="hidden" name="add_barangay" value="1">
+    <input type="text" name="barangay_name" placeholder="New barangay name" required style="flex:1;border:1.5px solid var(--border);border-radius:8px;padding:.6rem .75rem;font-family:inherit"/>
+    <button type="submit" style="padding:.5rem 1rem;background:var(--green-main);color:#fff;border:none;border-radius:8px;font-weight:700;cursor:pointer">+ Add Barangay</button>
+  </form>
+  <div style="font-size:.82rem;color:var(--text-mid)">
+    <?php foreach($barangays as $b): ?>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:.4rem 0;border-bottom:1px solid var(--border-light)">
+        <span><?= e($b['name']) ?></span>
+        <form method="POST" onsubmit="return confirm('Delete this barangay? Barangays with sitios cannot be deleted.')">
+          <input type="hidden" name="barangay_id" value="<?= (int)$b['id'] ?>">
+          <button type="submit" name="delete_barangay" class="btn-reject" style="font-size:.75rem;padding:.3rem .7rem">Delete</button>
+        </form>
       </div>
-    </div>
-    <div>
-      <form method="POST" style="display:flex;gap:.5rem;margin-bottom:.85rem;flex-wrap:wrap">
-        <input type="hidden" name="add_barangay" value="1">
-        <select name="city_id" required style="border:1.5px solid var(--border);border-radius:8px;padding:.5rem .75rem;font-family:inherit">
-          <option value="">City</option>
-          <?php foreach($cities as $c): ?><option value="<?= $c['id'] ?>"><?= e($c['name']) ?></option><?php endforeach; ?>
-        </select>
-        <input type="text" name="barangay_name" placeholder="New barangay name" required style="flex:1;border:1.5px solid var(--border);border-radius:8px;padding:.5rem .75rem;font-family:inherit"/>
-        <button type="submit" style="padding:.5rem 1rem;background:var(--green-main);color:#fff;border:none;border-radius:8px;font-weight:700;cursor:pointer">+ Add Barangay</button>
-      </form>
-      <div style="font-size:.8rem;color:var(--text-mid)">
-        <?php foreach($barangays as $b): ?>
-          <div style="padding:.3rem 0;border-bottom:1px solid var(--border-light)">📌 <?= e($b['name']) ?> <span style="color:var(--text-light)">— <?= e($b['city_name']) ?></span></div>
-        <?php endforeach; ?>
-        <?php if(!$barangays): ?><em>No barangays yet.</em><?php endif; ?>
-      </div>
-    </div>
+    <?php endforeach; ?>
+    <?php if(!$barangays): ?><em>No barangays yet. Add a barangay to Cebu City before creating sitios.</em><?php endif; ?>
   </div>
 </div>
-
 <?php if($sitios): ?>
 <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:1rem">
   <?php foreach($sitios as $s): ?>
   <div style="background:#fff;border-radius:16px;border:1px solid var(--border-light);box-shadow:var(--shadow-sm);overflow:hidden;transition:transform .18s,box-shadow .18s" onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='var(--shadow-md)'" onmouseout="this.style.transform='';this.style.boxShadow='var(--shadow-sm)'">
     <div style="padding:1.1rem 1.25rem;border-bottom:1px solid var(--border-light)">
       <div style="font-family:'Plus Jakarta Sans',sans-serif;font-size:1rem;font-weight:800;color:var(--text-dark);margin-bottom:.25rem"><?= htmlspecialchars($s['name']) ?></div>
-      <div style="font-size:.72rem;color:var(--green-main);font-weight:600;margin-bottom:.15rem">📌 <?= e($s['barangay_name'] ?? 'Unassigned') ?><?= $s['city_name'] ? ', '.e($s['city_name']) : '' ?></div>
+            <div style="font-size:.72rem;color:var(--green-main);font-weight:600;margin-bottom:.15rem"><?= e($s['barangay_name'] ?? 'Barangay not set') ?></div>
       <div style="font-size:.75rem;color:var(--text-light)">Added <?= date('M d, Y', strtotime($s['created_at'])) ?></div>
     </div>
     <div style="padding:.85rem 1.25rem;display:flex;gap:1.25rem">
@@ -179,10 +182,11 @@ render_admin_header('sitios', $unread, 'Sitios — DisBasura Admin');
     <form method="POST">
       <input type="hidden" name="add_sitio" value="1">
       <div class="field"><label>Sitio Name *</label><input type="text" name="name" placeholder="e.g. Sitio 1 - Poblacion" required autofocus/></div>
-      <div class="field"><label>Barangay</label>
-        <select name="barangay_id">
+      <div class="field"><label>Barangay *</label>
+        <select name="barangay_id" required>
+          <option value="">Select a Cebu City barangay</option>
           <?php foreach($barangays as $b): ?>
-          <option value="<?= $b['id'] ?>"><?= e($b['name']) ?> — <?= e($b['city_name']) ?></option>
+                    <option value="<?= (int)$b['id'] ?>"><?= e($b['name']) ?></option>
           <?php endforeach; ?>
         </select>
       </div>

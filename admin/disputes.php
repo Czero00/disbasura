@@ -21,7 +21,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     header('Location: /disbasura/admin/disputes.php'); exit;
 }
 $disputes = $db->query("SELECT d.*,u.full_name as resident_name,s.sitio,s.scheduled_at,s.waste_type,s.proof_photo as sched_proof_photo,s.collector_id,c.full_name as collector_name FROM disputes d JOIN users u ON d.user_id=u.id JOIN schedules s ON d.schedule_id=s.id LEFT JOIN collectors c ON s.collector_id=c.id WHERE d.status='pending' ORDER BY d.created_at DESC")->fetchAll();
-$unread = get_unread_count($_SESSION['admin_id']);
+$unread = get_unread_admin_count($_SESSION['admin_id']);
 render_admin_header('disputes',$unread,'Disputes — DisBasura Admin');
 ?>
 <div class="page-header"><h1>⚠️ Disputed Collections</h1><p>Review resident disputes and make a verdict</p></div>

@@ -80,10 +80,11 @@ $my_requests = $db->prepare("SELECT r.*,c.full_name as collector_name FROM reque
 $my_requests->execute([$uid]); $my_requests = $my_requests->fetchAll();
 
 // Weekly schedule — show all sitios, highlight own
-$all_weekly = $db->query("SELECT w.*,c.full_name as collector_name FROM weekly_schedule w LEFT JOIN collectors c ON w.collector_id=c.id ORDER BY FIELD(w.day_name,'Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'), w.sitio")->fetchAll();
+$upcoming_schedules = $db->prepare("SELECT s.*,c.full_name AS collector_name FROM schedules s LEFT JOIN collectors c ON s.collector_id=c.id WHERE s.sitio=? AND DATE(s.scheduled_at)>=CURDATE() ORDER BY s.scheduled_at ASC");
+$upcoming_schedules->execute([$sitio]); $upcoming_schedules = $upcoming_schedules->fetchAll();
 
 // Recent one-time schedules for resident's sitio (from schedules table — admin-created)
-$schedules = $db->prepare("SELECT s.*,c.full_name as collector_name FROM schedules s LEFT JOIN collectors c ON s.collector_id=c.id WHERE s.sitio=? AND DATE(s.scheduled_at)>=DATE_SUB(CURDATE(),INTERVAL 30 DAY) ORDER BY s.scheduled_at DESC LIMIT 15");
+$schedules = $db->prepare("SELECT s.*,c.full_name as collector_name FROM schedules s LEFT JOIN collectors c ON s.collector_id=c.id WHERE s.sitio=? AND DATE(s.scheduled_at)<CURDATE() AND DATE(s.scheduled_at)>=DATE_SUB(CURDATE(),INTERVAL 30 DAY) ORDER BY s.scheduled_at DESC LIMIT 15");
 $schedules->execute([$sitio]); $schedules = $schedules->fetchAll();
 
 $my_dispute_ids = $db->prepare("SELECT schedule_id FROM disputes WHERE user_id=?");
@@ -97,20 +98,6 @@ $unread = get_unread_count($uid);
 $announcements = $db->prepare("SELECT * FROM announcements WHERE sitio IS NULL OR sitio=? ORDER BY created_at DESC LIMIT 5");
 $announcements->execute([$sitio]); $announcements = $announcements->fetchAll();
 
-$now_pht   = new DateTime('now', new DateTimeZone('Asia/Manila'));
-$now_day   = $now_pht->format('l');
-// Pre-compute the actual calendar date for each day-of-week (current week Mon–Sun)
-$week_dates = [];
-$day_order  = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
-foreach ($day_order as $i => $d) {
-    $clone = clone $now_pht;
-    // diff in days from today
-    $today_dow = (int)$now_pht->format('N'); // 1=Mon … 7=Sun
-    $target_dow = $i + 1;
-    $diff = $target_dow - $today_dow;
-    $clone->modify("$diff days");
-    $week_dates[$d] = $clone;
-}
 $dark = $prefs['dark_mode'] ? 'dark' : '';
 ?>
 <!DOCTYPE html>
@@ -390,105 +377,32 @@ $dark = $prefs['dark_mode'] ? 'dark' : '';
     </div>
     <?php endif; ?>
 
-    <!-- ── Collection Schedule (ALL sitios, highlight own) ── -->
+    <!-- Collection Schedule: only dates created by the admin for this sitio -->
     <div class="panel fade-up">
       <div class="panel-hd">
-        <h3>📅 <?= $lang['my_schedule'] ?></h3>
-        <span style="font-size:.75rem;color:#7aab8a">Your sitio is highlighted</span>
+        <h3>&#128197; <?= e($lang['my_schedule']) ?></h3>
+        <span style="font-size:.75rem;color:#7aab8a">Schedules set by your admin</span>
       </div>
-      <?php if($all_weekly):
-        $grouped = [];
-        foreach ($all_weekly as $w) {
-            $grouped[$w['day_name']][] = $w;
-        }
-      ?>
-      <div style="padding:.6rem .85rem .85rem">
-      <?php foreach ($day_order as $day_name):
-        if (!isset($grouped[$day_name])) continue;
-        $rows      = $grouped[$day_name];
-        $is_today  = $day_name === $now_day;
-        $dt        = $week_dates[$day_name] ?? null;
-        $day_num   = $dt ? $dt->format('j') : '';
-        $month_sh  = $dt ? $dt->format('M') : '';
-        $full_date = $dt ? $dt->format('M j, Y') : '';
-        $my_rows   = array_filter($rows, fn($r) => $r['sitio'] === $sitio);
-        $row_count = count($rows);
-        $has_mine  = count($my_rows) > 0;
-        // Today and days with your sitio start open, others start closed
-        $starts_open = $is_today || $has_mine;
-        $card_id = 'daycard_' . strtolower($day_name);
-      ?>
-      <div style="border:1.5px solid <?= $is_today ? '#b6d9c3' : '#e4ede8' ?>;border-radius:12px;overflow:hidden;margin-bottom:.6rem;<?= $is_today ? 'box-shadow:0 0 0 3px rgba(30,107,60,.07)' : '' ?>">
-        <!-- Clickable header -->
-        <button onclick="toggleDay('<?= $card_id ?>')"
-          style="width:100%;display:flex;align-items:center;gap:.85rem;padding:.72rem 1rem;background:<?= $is_today ? 'linear-gradient(90deg,#e8f5ee,#f2faf6)' : '#f8fbf9' ?>;border:none;cursor:pointer;text-align:left;transition:background .15s"
-          onmouseover="this.style.background='<?= $is_today ? 'linear-gradient(90deg,#dff0e8,#ecf7f0)' : '#f0f7f3' ?>'"
-          onmouseout="this.style.background='<?= $is_today ? 'linear-gradient(90deg,#e8f5ee,#f2faf6)' : '#f8fbf9' ?>'">
-          <!-- Date badge -->
-          <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;width:44px;height:44px;border-radius:9px;background:<?= $is_today ? '#1e6b3c' : '#fff' ?>;border:1.5px solid <?= $is_today ? '#1e6b3c' : '#d4e6db' ?>;flex-shrink:0">
-            <span style="font-family:'Plus Jakarta Sans',sans-serif;font-size:1.05rem;font-weight:800;color:<?= $is_today ? '#fff' : '#1a3a2a' ?>;line-height:1"><?= $day_num ?></span>
-            <span style="font-size:.58rem;font-weight:700;text-transform:uppercase;color:<?= $is_today ? 'rgba(255,255,255,.75)' : '#7aab8a' ?>;letter-spacing:.04em;margin-top:.1rem"><?= $month_sh ?></span>
-          </div>
-          <!-- Day info -->
-          <div style="flex:1;min-width:0">
-            <div style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap">
-              <span style="font-family:'Plus Jakarta Sans',sans-serif;font-size:.9rem;font-weight:800;color:#1a3a2a"><?= $day_name ?></span>
-              <?php if($is_today): ?><span style="font-size:.62rem;background:#1e6b3c;color:#fff;border-radius:20px;padding:.1rem .5rem;font-weight:700">TODAY</span><?php endif; ?>
-              <?php if($has_mine): ?><span style="font-size:.62rem;background:#e8f5ee;color:#1e6b3c;border:1px solid #b6d9c3;border-radius:20px;padding:.1rem .5rem;font-weight:700">📍 Your sitio</span><?php endif; ?>
-            </div>
-            <div style="font-size:.74rem;color:#7aab8a;margin-top:.1rem"><?= $row_count ?> sitio<?= $row_count>1?'s':'' ?> · <?= $full_date ?></div>
-          </div>
-          <!-- Chevron -->
-          <svg id="<?= $card_id ?>_chevron" width="16" height="16" fill="none" stroke="#7aab8a" stroke-width="2.5" viewBox="0 0 24 24" style="flex-shrink:0;transition:transform .22s;transform:<?= $starts_open ? 'rotate(180deg)' : 'rotate(0deg)' ?>">
-            <polyline points="6 9 12 15 18 9"/>
-          </svg>
-        </button>
-
-        <!-- Collapsible rows -->
-        <div id="<?= $card_id ?>" style="display:<?= $starts_open ? 'block' : 'none' ?>">
-          <?php foreach ($rows as $w):
-            $is_own = $w['sitio'] === $sitio;
-            $sc = $w['status'];
-            $bc = $sc==='received'?'completed':($sc==='missed'?'rejected':'pending');
-          ?>
-          <div style="display:flex;align-items:center;justify-content:space-between;padding:.55rem 1rem;border-top:1px solid #f0f5f2;gap:.5rem;flex-wrap:wrap;<?= $is_own ? 'background:#f2faf5;' : '' ?>">
-            <div style="display:flex;align-items:center;gap:.6rem;flex:1;min-width:0">
-              <span style="display:inline-flex;align-items:center;padding:.18rem .5rem;background:#e8f5ee;color:#1e6b3c;border-radius:6px;font-size:.7rem;font-weight:700;white-space:nowrap;flex-shrink:0">🕖 <?= e(substr($w['collection_time'],0,5)) ?></span>
-              <div style="min-width:0">
-                <span style="font-size:.83rem;font-weight:600;color:#1a3a2a">
-                  <?= e($w['sitio']) ?>
-                  <?php if($is_own): ?><span style="font-size:.62rem;background:#e8f5ee;color:#1e6b3c;border:1px solid #b6d9c3;border-radius:20px;padding:.1rem .4rem;margin-left:.3rem;font-weight:700">Mine</span><?php endif; ?>
-                </span>
-                <?php if($w['collector_name']): ?>
-                <div style="font-size:.7rem;color:#7aab8a">🚛 <?= e($w['collector_name']) ?></div>
-                <?php endif; ?>
-              </div>
-            </div>
-            <div style="display:flex;align-items:center;gap:.5rem;flex-shrink:0">
-              <span style="font-size:.72rem;color:#aac4b2"><?= e($w['waste_type']) ?></span>
-              <span class="badge <?= $bc ?>"><?= e($sc) ?></span>
-            </div>
-          </div>
+      <?php if ($upcoming_schedules): ?>
+      <div style="overflow-x:auto;padding:.25rem .85rem .85rem">
+        <table class="sched-table">
+          <thead><tr><th>Date &amp; Time</th><th>Waste Type</th><th>Collector</th><th>Status</th></tr></thead>
+          <tbody>
+          <?php foreach ($upcoming_schedules as $s): ?>
+          <tr>
+            <td><?= fmt_date($s['scheduled_at']) ?></td>
+            <td><?= e($s['waste_type']) ?></td>
+            <td style="color:#7aab8a"><?= e($s['collector_name'] ?? 'Not assigned') ?></td>
+            <td><span class="badge <?= e($s['status']) ?>"><?= e($s['status']) ?></span></td>
+          </tr>
           <?php endforeach; ?>
-        </div>
-      </div>
-      <?php endforeach; ?>
+          </tbody>
+        </table>
       </div>
       <?php else: ?>
-      <div style="padding:2rem;text-align:center;color:#7aab8a;font-size:.85rem">No weekly schedule set yet.</div>
+      <div style="padding:2rem;text-align:center;color:#7aab8a;font-size:.85rem">No collection schedules have been set for your sitio yet.</div>
       <?php endif; ?>
     </div>
-
-    <script>
-    function toggleDay(id) {
-      var el  = document.getElementById(id);
-      var chv = document.getElementById(id + '_chevron');
-      var open = el.style.display === 'none';
-      el.style.display  = open ? 'block' : 'none';
-      chv.style.transform = open ? 'rotate(180deg)' : 'rotate(0deg)';
-    }
-    </script>
-
     <!-- ── One-time Schedules for this sitio (admin-assigned) ── -->
     <?php if($schedules): ?>
     <div class="panel fade-up">
