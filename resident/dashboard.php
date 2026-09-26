@@ -408,7 +408,7 @@ $dark = $prefs['dark_mode'] ? 'dark' : '';
       <?php if ($upcoming_schedules): ?>
       <div style="overflow-x:auto;padding:.25rem .85rem .85rem">
         <table class="sched-table">
-          <thead><tr><th>Date &amp; Time</th><th>Waste Type</th><th>Collector</th><th>Status</th></tr></thead>
+          <thead><tr><th>Date &amp; Time</th><th>Waste Type</th><th>Collector</th><th>Status</th><th>Action</th></tr></thead>
           <tbody>
           <?php foreach ($upcoming_schedules as $s): ?>
           <tr>
@@ -416,6 +416,20 @@ $dark = $prefs['dark_mode'] ? 'dark' : '';
             <td><?= e($s['waste_type']) ?></td>
             <td style="color:#7aab8a"><?= e($s['collector_name'] ?? 'Not assigned') ?></td>
             <td><span class="badge <?= e($s['status']) ?>"><?= e($s['status']) ?></span></td>
+            <td style="white-space:nowrap;vertical-align:middle">
+              <?php if ($s['status'] === 'completed'): ?>
+                <?php if (!in_array($s['id'], $my_feedback_ids)): ?>
+                <button onclick="openFeedback(<?= (int)$s['id'] ?>)" style="font-size:.73rem;background:#fff3e0;color:#f5a623;border:1px solid #fdd9a0;border-radius:20px;padding:.25rem .65rem;cursor:pointer;font-family:inherit;font-weight:700">⭐ Rate</button>
+                <?php else: ?>
+                <span style="font-size:.72rem;color:#f5a623;font-weight:700;background:#fff3e0;padding:.2rem .6rem;border-radius:20px;border:1px solid #fdd9a0">⭐ Rated</span>
+                <?php endif; ?>
+                <?php if (empty($s['resident_proof_photo'])): ?>
+                <button onclick="openResProof(<?= (int)$s['id'] ?>,'<?= htmlspecialchars($s['waste_type'], ENT_QUOTES) ?> — <?= htmlspecialchars($s['sitio'] ?? $sitio, ENT_QUOTES) ?>')" style="font-size:.73rem;background:#1e6b3c;color:#fff;border:none;border-radius:20px;padding:.3rem .7rem;cursor:pointer;font-family:inherit;font-weight:700">📷 Submit Photo Proof</button>
+                <?php else: ?>
+                <span style="font-size:.72rem;color:#1e6b3c;font-weight:700;background:#e8f5ee;padding:.2rem .6rem;border-radius:20px;border:1px solid #b6d9c3">📷 Proof Sent</span>
+                <?php endif; ?>
+              <?php endif; ?>
+            </td>
           </tr>
           <?php endforeach; ?>
           </tbody>
