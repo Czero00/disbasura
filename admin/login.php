@@ -12,16 +12,34 @@ $error = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($no_admin && isset($_POST['full_name'])) {
-        $fn=$_POST['full_name']; $un=$_POST['username']; $em=$_POST['email']; $pw=$_POST['password'];
-        if ($fn && $un && $em && $pw) {
-            $db->prepare("INSERT INTO administrators (full_name,username,email,password) VALUES (?,?,?,?)")
-               ->execute([$fn,$un,$em,password_hash($pw,PASSWORD_BCRYPT)]);
-            header('Location: /disbasura/admin/login.php'); exit;
+        // Serialize first-admin setup so only one account can be created on a fresh database.
+        $lock = (int)$db->query("SELECT GET_LOCK('disbasura_first_admin_setup', 5)")->fetchColumn();
+        $no_admin = !$db->query("SELECT id FROM administrators LIMIT 1")->fetch();
+        $fn=trim($_POST['full_name']);
+        $un=trim($_POST['username']); $em=trim($_POST['email']); $pw=$_POST['password'];
+        if (preg_match('/^AD-/i', $un)) $un='AD-'.substr($un, 3);
+        if ($lock !== 1) {
+            $error = 'Admin setup is busy. Please try again.';
+        } elseif (!preg_match('/^AD-[a-zA-Z0-9_]+$/', $un)) {
+            $error = 'Admin username must start with AD- (example: AD-rey).';
+        } elseif ($fn && $un && $em && $pw) {
+            if ($no_admin) {
+                $db->prepare("INSERT INTO administrators (full_name,username,email,password) VALUES (?,?,?,?)")
+                   ->execute([$fn,$un,$em,password_hash($pw,PASSWORD_BCRYPT)]);
+                $db->query("SELECT RELEASE_LOCK('disbasura_first_admin_setup')");
+                header('Location: /disbasura/admin/login.php'); exit;
+            }
+            $error = 'The first admin account has already been created. Please sign in.';
+        } else {
+            $error = 'All fields required.';
         }
-        $error = 'All fields required.';
+        $db->query("SELECT RELEASE_LOCK('disbasura_first_admin_setup')");
     } else {
-        $u = $db->prepare("SELECT * FROM administrators WHERE username=?");
-        $u->execute([$_POST['username']]); $u = $u->fetch();
+        // The login form accepts either the admin username or registered email.
+        // The login form accepts either the admin username or registered email.
+        $identity = trim($_POST['username'] ?? '');
+        $u = $db->prepare("SELECT * FROM administrators WHERE username=? OR email=? LIMIT 1");
+        $u->execute([$identity, $identity]); $u = $u->fetch();
         if ($u && password_verify($_POST['password'], $u['password'])) {
             $_SESSION['admin_id']   = $u['id'];
             $_SESSION['admin_name'] = $u['full_name'];
@@ -40,6 +58,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   <title>Admin Login — DisBasura</title>
   <link rel="stylesheet" href="/disbasura/assets/css/base.css"/>
   <link rel="stylesheet" href="/disbasura/assets/css/auth.css"/>
+  <style>
+    /* Small motion cues make the admin setup and sign-in panel easier to follow. */
+    .auth-card { animation: adminCardIn .55s cubic-bezier(.2,.8,.2,1) both; transition: transform .22s ease, box-shadow .22s ease; }
+    .auth-card:hover { transform: translateY(-3px); box-shadow: 0 26px 70px rgba(0,0,0,.3), inset 0 1px 0 rgba(255,255,255,.3); }
+    .auth-card .field input { transition: border-color .18s ease, box-shadow .18s ease, background .18s ease; }
+    .auth-card .field input:focus { border-color: rgba(28,150,86,.8); box-shadow: 0 0 0 3px rgba(28,150,86,.15); }
+    @keyframes adminCardIn { from { opacity: 0; transform: translateY(14px) scale(.985); } to { opacity: 1; transform: translateY(0) scale(1); } }
+    @media (prefers-reduced-motion: reduce) { .auth-card { animation: none; transition: none; } }
+  </style>
 </head>
 <body>
 <div class="auth-bg">
@@ -113,7 +140,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
               <input type="text" name="full_name" placeholder="Full Name" class="no-icon" required/>
             </div>
             <div class="field" style="margin-bottom:0">
-              <input type="text" name="username" placeholder="Username" class="no-icon" required/>
+              <input type="text" name="username" placeholder="Username (AD-rey)" class="no-icon" required/>
             </div>
           </div>
           <div class="field">

@@ -28,27 +28,8 @@ foreach ($weekly_rows as $row) {
 $today_day = (new DateTime('now', new DateTimeZone('Asia/Manila')))->format('l');
 $unread    = get_unread_admin_count($_SESSION['admin_id']);
 
-// Handle add/delete sitio
+// Save weekly schedules; sitio creation is managed with barangays in Manage Locations.
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    if (isset($_POST['add_sitio'])) {
-        $name = trim($_POST['name'] ?? '');
-        if ($name) {
-            try {
-                $db->prepare("INSERT INTO sitios (name) VALUES (?)")->execute([$name]);
-                $days = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
-                foreach ($days as $d) {
-                    $db->prepare("INSERT IGNORE INTO weekly_schedule (day_name,sitio,collection_time,waste_type) VALUES (?,?,'07:00','Mixed')")->execute([$d,$name]);
-                }
-            } catch (Exception $e) {}
-        }
-        header('Location: /disbasura/admin/dashboard.php'); exit;
-    }
-    if (isset($_POST['delete_sitio'])) {
-        $name = trim($_POST['name'] ?? '');
-        $db->prepare("DELETE FROM sitios WHERE name=?")->execute([$name]);
-        $db->prepare("DELETE FROM weekly_schedule WHERE sitio=?")->execute([$name]);
-        header('Location: /disbasura/admin/dashboard.php'); exit;
-    }
     if (isset($_POST['update_weekly'])) {
         $sitio   = $_POST['sitio'] ?? '';
         $day     = $_POST['day_name'] ?? '';
@@ -77,7 +58,7 @@ render_admin_header('dashboard', $unread, 'Dashboard — DisBasura Admin');
   <div class="weekly-section-title" style="font-family:'Plus Jakarta Sans',sans-serif;font-size:1rem;font-weight:700;display:flex;align-items:center;gap:.5rem;margin-bottom:1rem">
     📅 Weekly Barangay Collection Schedule
     <span style="font-size:.75rem;font-weight:500;color:var(--text-light);margin-left:.5rem">Click any card to update</span>
-    <button onclick="document.getElementById('addSitioModal').style.display='flex'" style="margin-left:auto;padding:.3rem .9rem;background:var(--green-main);color:#fff;border:none;border-radius:20px;font-size:.75rem;font-weight:700;cursor:pointer">+ Add Sitio</button>
+    <a href="/disbasura/admin/sitios.php" style="margin-left:auto;padding:.3rem .9rem;background:var(--green-main);color:#fff;border-radius:20px;font-size:.75rem;font-weight:700;text-decoration:none">Manage Sitios</a>
   </div>
   <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:.85rem">
     <?php foreach ($sitios_list as $sitio):

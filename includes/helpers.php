@@ -8,7 +8,8 @@
 require_once __DIR__ . '/../config/db.php';
 
 function get_sitios(): array {
-    return get_db()->query("SELECT name FROM sitios ORDER BY name")->fetchAll(PDO::FETCH_COLUMN);
+    // Unassigned legacy rows are repaired in Manage Locations, not offered for new assignments.
+    return get_db()->query("SELECT name FROM sitios WHERE barangay_id IS NOT NULL ORDER BY name")->fetchAll(PDO::FETCH_COLUMN);
 }
 
 // ── Geographic hierarchy (Cities -> Barangays -> Sitios -> Sites) ─

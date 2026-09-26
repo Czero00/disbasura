@@ -57,20 +57,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         header('Location: /disbasura/admin/sitios.php'); exit;
     }
     if (isset($_POST['add_sitio'])) {
-        $name = trim($_POST['name'] ?? '');
+        $name = preg_replace('/\s+/', ' ', trim($_POST['name'] ?? ''));
         $barangayId = (int)($_POST['barangay_id'] ?? 0);
         $validCebuBarangays = $cebuCityId ? array_filter(get_barangays($cebuCityId), static fn($b) => strcasecmp($b['name'], 'Unassigned') !== 0) : [];
         $validBarangayIds = array_map('intval', array_column($validCebuBarangays, 'id'));
         if ($name && in_array($barangayId, $validBarangayIds, true)) {
-            try {
+            $duplicate = $db->prepare('SELECT id FROM sitios WHERE LOWER(TRIM(name)) = LOWER(TRIM(?)) LIMIT 1');
+            $duplicate->execute([$name]);
+            if ($duplicate->fetch()) {
+                $_SESSION['flash_err'] = "A sitio named '$name' already exists. Choose a different name.";
+            } else {
+                try {
                 $db->prepare("INSERT INTO sitios (name,barangay_id) VALUES (?,?)")->execute([$name,$barangayId]);
                 $days = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
                 foreach ($days as $d) {
                     $db->prepare("INSERT IGNORE INTO weekly_schedule (day_name,sitio,collection_time,waste_type) VALUES (?,?,'07:00:00','Mixed')")->execute([$d,$name]);
                 }
                 $_SESSION['flash'] = "✅ Sitio '$name' added successfully!";
-            } catch (Exception $e) {
-                $_SESSION['flash_err'] = "Sitio '$name' already exists.";
+                } catch (Exception $e) {
+                    $_SESSION['flash_err'] = "Sitio '$name' already exists.";
+                }
             }
         } elseif ($name) {
             $_SESSION['flash_err'] = 'Choose a barangay in Cebu City before adding a sitio.';
@@ -88,8 +94,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     if (isset($_POST['edit_sitio'])) {
         $old = trim($_POST['old_name'] ?? '');
-        $new = trim($_POST['new_name'] ?? '');
+        $new = preg_replace('/\s+/', ' ', trim($_POST['new_name'] ?? ''));
         if ($old && $new && $old !== $new) {
+            $duplicate = $db->prepare('SELECT id FROM sitios WHERE LOWER(TRIM(name)) = LOWER(TRIM(?)) AND name <> ? LIMIT 1');
+            $duplicate->execute([$new, $old]);
+            if ($duplicate->fetch()) {
+                $_SESSION['flash_err'] = "A sitio named '$new' already exists. Choose a different name.";
+                header('Location: /disbasura/admin/sitios.php'); exit;
+            }
             $db->prepare("UPDATE sitios SET name=? WHERE name=?")->execute([$new,$old]);
             $db->prepare("UPDATE weekly_schedule SET sitio=? WHERE sitio=?")->execute([$new,$old]);
             $db->prepare("UPDATE users SET sitio=? WHERE sitio=?")->execute([$new,$old]);
@@ -110,7 +122,7 @@ $sitioStmt = $db->prepare("SELECT s.*, b.name AS barangay_name, c.name AS city_n
                           LEFT JOIN cities c ON b.city_id=c.id
                           LEFT JOIN users u ON u.sitio=s.name AND u.role IN ('resident','leader')
                           LEFT JOIN collectors co ON co.sitio=s.name
-                          WHERE c.id = ?
+                          WHERE c.id = ? OR s.barangay_id IS NULL
                           GROUP BY s.id ORDER BY b.name, s.name");
 $sitioStmt->execute([$cebuCityId]);
 $sitios = $sitioStmt->fetchAll();

@@ -22,6 +22,17 @@
 3. Fill in your Name, Username, Email, Password
 4. Click Create Admin Account
 
+## SMS ALERT SETUP (OPTIONAL PROVIDER CREDENTIALS REQUIRED)
+1. Get a Semaphore API key and register the sender name in your Semaphore account.
+2. Create `config/local.php` (this file is ignored by Git) with:
+   ```php
+   <?php
+   define('SEMAPHORE_API_KEY', 'paste-your-api-key-here');
+   define('SEMAPHORE_SENDER_NAME', 'DisBasura');
+   ```
+3. Set the sender name to the one approved for your Semaphore account. SMS alerts are sent when schedules or announcements are published and when a collection is completed. Resident phone numbers saved at sign-up are used as SMS destinations.
+4. Without a valid API key, in-app notifications continue to work and SMS delivery remains disabled.
+
 ## ═══ STEP 4: ALL LOGIN URLS ═══
 | Role       | URL                                              |
 |------------|--------------------------------------------------|

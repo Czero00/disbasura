@@ -5,9 +5,14 @@
 //  Free plan: 10 free credits to test
 // ============================================================
 
-define('SMS_ENABLED', false);         // Set to true when you have API key
-define('SMS_API_KEY', 'YOUR_SEMAPHORE_API_KEY_HERE');
-define('SMS_SENDER_NAME', 'DisBasura'); // Max 11 chars, registered in Semaphore
+// Keep provider credentials outside the project in ignored config/local.php or environment variables.
+$smsLocalConfig = __DIR__ . '/local.php';
+if (is_file($smsLocalConfig)) require_once $smsLocalConfig;
+$smsApiKey = getenv('SEMAPHORE_API_KEY') ?: (defined('SEMAPHORE_API_KEY') ? SEMAPHORE_API_KEY : (defined('SMS_API_KEY') ? SMS_API_KEY : ''));
+$smsSender = getenv('SEMAPHORE_SENDER_NAME') ?: (defined('SEMAPHORE_SENDER_NAME') ? SEMAPHORE_SENDER_NAME : (defined('SMS_SENDER_NAME') ? SMS_SENDER_NAME : 'DisBasura'));
+if (!defined('SMS_API_KEY')) define('SMS_API_KEY', $smsApiKey);
+if (!defined('SMS_SENDER_NAME')) define('SMS_SENDER_NAME', $smsSender);
+if (!defined('SMS_ENABLED')) define('SMS_ENABLED', SMS_API_KEY !== '' && SMS_API_KEY !== 'YOUR_SEMAPHORE_API_KEY_HERE');
 
 function send_sms(string $phone, string $message): bool {
     if (!SMS_ENABLED) return false;
@@ -48,9 +53,10 @@ function send_sms(string $phone, string $message): bool {
 function send_sms_to_sitio(string $sitio, string $message): void {
     if (!SMS_ENABLED) return;
     $db = get_db();
-    $stmt = $db->prepare("SELECT sms_number FROM users WHERE sitio=? AND role IN ('resident','leader') AND sms_number IS NOT NULL AND sms_number != ''");
+    // Sign-up stores phone in `phone`; older imports may have `sms_number` instead.
+    $stmt = $db->prepare("SELECT COALESCE(NULLIF(sms_number,''), phone) AS phone_number FROM users WHERE sitio=? AND role IN ('resident','leader') AND COALESCE(NULLIF(sms_number,''), phone) IS NOT NULL AND COALESCE(NULLIF(sms_number,''), phone) != ''");
     $stmt->execute([$sitio]);
     foreach ($stmt->fetchAll() as $user) {
-        send_sms($user['sms_number'], $message);
+        send_sms($user['phone_number'], $message);
     }
 }

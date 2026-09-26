@@ -22,8 +22,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $db = get_db();
     $matches = [];
 
-    $stmt = $db->prepare('SELECT * FROM administrators WHERE username=? LIMIT 1');
-    $stmt->execute([$username]);
+    // Admins may use either the saved username or email on the landing page.
+    $stmt = $db->prepare('SELECT * FROM administrators WHERE username=? OR email=? LIMIT 1');
+    $stmt->execute([$username, $username]);
     $account = $stmt->fetch();
     if ($account && password_verify($password, $account['password'])) $matches[] = ['type'=>'admin','account'=>$account];
 
