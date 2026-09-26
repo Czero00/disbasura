@@ -19,22 +19,22 @@ $registrationEnabled = (bool)get_db()->query('SELECT id FROM administrators LIMI
     body{font-family:'Plus Jakarta Sans',sans-serif;color:var(--ink);background:#042a21;-webkit-font-smoothing:antialiased}
     a{color:inherit;text-decoration:none}
     .container{width:min(1220px,calc(100% - 60px));margin:auto}
-    .site-header{height:112px;background:rgba(0,25,18,.97);border-bottom:1px solid #104438;position:sticky;top:0;z-index:10;backdrop-filter:blur(12px)}
+    .site-header{height:92px;background:rgba(0,25,18,.97);border-bottom:1px solid #104438;position:sticky;top:0;z-index:10;backdrop-filter:blur(12px)}
     .nav{height:100%;display:flex;align-items:center;justify-content:space-between;gap:20px}
-    .brand{display:flex;align-items:center;gap:12px;min-width:276px;padding:9px 17px;border:1px solid #0c6654;border-radius:20px;background:#071a20}
-    .brand-mark{width:44px;height:44px;display:grid;place-items:center;border-radius:13px;color:white;background:linear-gradient(145deg,#10c993,#007c5b);box-shadow:0 5px 12px #00a87935}
+    .brand{display:flex;align-items:center;gap:10px;min-width:250px;padding:7px 14px;border:1px solid #0c6654;border-radius:18px;background:#071a20}
+    .brand-mark{width:40px;height:40px;display:grid;place-items:center;border-radius:12px;color:white;background:linear-gradient(145deg,#10c993,#007c5b);box-shadow:0 5px 12px #00a87935}
     .brand-mark svg{width:24px;height:24px}
     .brand>.brand-mark svg path:first-child{fill:currentColor}
-    .brand-name{font-size:23px;line-height:1.15;font-weight:800;letter-spacing:-.8px;color:#f7fffb}
+    .brand-name{font-size:21px;line-height:1.15;font-weight:800;letter-spacing:-.8px;color:#f7fffb}
     .brand-tag{display:block;color:#44bd98;font-size:10px;font-weight:800;letter-spacing:.35px;text-transform:uppercase;margin-top:2px}
-    .nav-links{display:flex;align-items:center;gap:14px;padding:7px;border:1px solid #152c3c;border-radius:19px;background:#030f19;color:#c3cfdb;font-weight:800;font-size:14px}
+    .nav-links{display:flex;align-items:center;gap:10px;padding:6px;border:1px solid #152c3c;border-radius:17px;background:#030f19;color:#c3cfdb;font-weight:800;font-size:13px}
     .nav-links a,.nav-actions a{transition:color .18s,background .18s,border-color .18s,transform .18s}
-    .nav-links a{padding:12px 27px;border:1px solid #1c2d40;border-radius:15px;background:#091421}
+    .nav-links a{padding:10px 23px;border:1px solid #1c2d40;border-radius:14px;background:#091421}
     .nav-links a:hover,.nav-links a.active{color:#21d6a1;border-color:#087c61;background:#002c24}
-    .nav-actions{display:flex;align-items:center;gap:14px;font-size:14px;font-weight:800;color:#d8e4e0}
-    .login-link{padding:12px 23px;border:1px solid #0c6654;border-radius:15px;background:#071a20}
+    .nav-actions{display:flex;align-items:center;gap:12px;font-size:13px;font-weight:800;color:#d8e4e0}
+    .login-link{padding:10px 20px;border:1px solid #0c6654;border-radius:14px;background:#071a20}
     .login-link:hover{color:#54e3b2;background:#0a3028}
-    .signup{padding:12px 27px;border:1px solid #10b888;border-radius:15px;background:#069b70;color:white;box-shadow:0 5px 14px #00a87935}
+    .signup{padding:10px 23px;border:1px solid #10b888;border-radius:14px;background:#069b70;color:white;box-shadow:0 5px 14px #00a87935}
     .signup:hover,.button-primary:hover{background:#08b985;transform:translateY(-1px)}
     .menu-toggle{display:none;border:0;background:#0a8d68;border-radius:10px;color:white;font-size:25px;cursor:pointer}
     .login-modal{position:fixed;inset:0;z-index:30;display:none;place-items:center;padding:20px;background:linear-gradient(180deg,rgba(0,25,29,.9) 0%,rgba(4,25,31,.88) 53%,rgba(67,70,82,.91) 54%,rgba(67,70,82,.91) 100%);backdrop-filter:blur(8px)}
