@@ -68,17 +68,34 @@ function get_unread_admin_count(int $admin_id): int {
     return (int)$s->fetchColumn();
 }
 
+/** Insert notification fields supported by the installed database schema. */
+function insert_user_notification(PDO $db, int $user_id, string $message, string $title): void {
+    static $columns = null;
+    if ($columns === null) {
+        $columns = array_column($db->query('SHOW COLUMNS FROM notifications')->fetchAll(), 'Field');
+    }
+
+    $values = ['user_id' => $user_id, 'message' => $message];
+    if (in_array('title', $columns, true)) $values['title'] = $title;
+    if (in_array('status', $columns, true)) $values['status'] = 'sent';
+    if (in_array('created_at', $columns, true)) $values['created_at'] = now_pht();
+
+    $fields = array_keys($values);
+    $fieldList = implode(',', array_map(static fn($field) => "`$field`", $fields));
+    $placeholders = implode(',', array_fill(0, count($fields), '?'));
+    $db->prepare("INSERT INTO notifications ($fieldList) VALUES ($placeholders)")
+       ->execute(array_values($values));
+}
+
 function notify_user(PDO $db, int $user_id, string $message, string $title = 'Notification'): void {
-    $db->prepare("INSERT INTO notifications (user_id,title,message,status,created_at) VALUES (?,?,?,?,?)")
-       ->execute([$user_id, $title, $message, 'sent', now_pht()]);
+    insert_user_notification($db, $user_id, $message, $title);
 }
 
 function notify_all_sitio(PDO $db, string $sitio, string $message, string $title = 'Announcement'): void {
     $stmt = $db->prepare("SELECT id FROM users WHERE sitio=? AND role IN ('resident','leader')");
     $stmt->execute([$sitio]);
-    $ins = $db->prepare("INSERT INTO notifications (user_id,title,message,status,created_at) VALUES (?,?,?,?,?)");
     foreach ($stmt->fetchAll() as $r) {
-        $ins->execute([$r['id'], $title, $message, 'sent', now_pht()]);
+        insert_user_notification($db, (int)$r['id'], $message, $title);
     }
     // SMS notify
     if (file_exists(__DIR__.'/../config/sms.php')) {
