@@ -3,6 +3,10 @@ require_once __DIR__ . '/../middleware/admin_auth.php';
 require_once __DIR__ . '/../includes/helpers.php';
 require_once __DIR__ . '/../includes/base_admin.php';
 $db = get_db();
+$disputeHasResolution = (bool)$db->query("SHOW COLUMNS FROM disputes LIKE 'resolution'")->fetch();
+$disputeVerdictQuery = $disputeHasResolution
+    ? "SELECT COALESCE(NULLIF(resolution,''),'Pending review') AS verdict,COUNT(*) AS count FROM disputes GROUP BY verdict ORDER BY count DESC"
+    : "SELECT CASE WHEN status='pending' THEN 'Pending review' ELSE CONCAT(UPPER(LEFT(status,1)),SUBSTRING(status,2),' (verdict unavailable)') END AS verdict,COUNT(*) AS count FROM disputes GROUP BY status ORDER BY count DESC";
 $data = [
     'total_schedules'    => $db->query("SELECT COUNT(*) FROM schedules")->fetchColumn(),
     'total_requests'     => $db->query("SELECT COUNT(*) FROM requests")->fetchColumn(),
@@ -14,7 +18,7 @@ $data = [
     'dispute_total'      => $db->query("SELECT COUNT(*) FROM disputes")->fetchColumn(),
     'dispute_by_status'  => $db->query("SELECT status,COUNT(*) AS count FROM disputes GROUP BY status ORDER BY status")->fetchAll(),
     'dispute_by_sitio'   => $db->query("SELECT s.sitio,COUNT(d.id) AS total, SUM(d.status='pending') AS pending, SUM(d.status='resolved') AS resolved, SUM(d.status='rejected') AS rejected FROM disputes d JOIN schedules s ON s.id=d.schedule_id GROUP BY s.sitio ORDER BY total DESC, s.sitio")->fetchAll(),
-    'dispute_by_verdict' => $db->query("SELECT COALESCE(NULLIF(resolution,''),'Pending review') AS verdict,COUNT(*) AS count FROM disputes GROUP BY verdict ORDER BY count DESC")->fetchAll(),
+    'dispute_by_verdict' => $db->query($disputeVerdictQuery)->fetchAll(),
 ];
 $unread = get_unread_admin_count($_SESSION['admin_id']);
 render_admin_header('reports',$unread,'Reports — DisBasura Admin');
