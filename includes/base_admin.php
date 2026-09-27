@@ -19,6 +19,8 @@ function render_admin_header(string $active = '', int $unread = 0, string $title
             '<path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/>'],
         'announcements' => ['Announcements',  '/disbasura/admin/announcements.php',
             '<path d="M22 17H2a3 3 0 000 6h20"/><path d="M2 17l10-9 10 9"/>'],
+        'contacts'      => ['Contact Inbox',  '/disbasura/admin/contact-messages.php',
+            '<path d="M4 4h16a2 2 0 012 2v12a2 2 0 01-2 2H4a2 2 0 01-2-2V6a2 2 0 012-2z"/><polyline points="22,6 12,13 2,6"/>'],
         'history'       => ['History',        '/disbasura/admin/history.php',
             '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>'],
         'disputes'      => ['Disputes',       '/disbasura/admin/disputes.php',
@@ -45,6 +47,7 @@ function render_admin_header(string $active = '', int $unread = 0, string $title
         $pageCounts['residents']     = (int)$db->query("SELECT COUNT(*) FROM users WHERE role='resident' AND DATE(created_at)=CURDATE()")->fetchColumn();
     } catch (Exception $e) {}
     try { $pageCounts['payments'] = (int)$db->query("SELECT COUNT(*) FROM pickup_payments WHERE status='pending'")->fetchColumn(); } catch (Exception $e) {}
+    try { $pageCounts['contacts'] = (int)$db->query("SELECT COUNT(*) FROM contact_messages WHERE email_verified=1 AND replied_at IS NULL")->fetchColumn(); } catch (Exception $e) {}
 
     $full_name = e($_SESSION['admin_name'] ?? 'Admin');
     $initial   = strtoupper(substr($full_name, 0, 1));

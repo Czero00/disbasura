@@ -1,6 +1,79 @@
 <?php
+require_once __DIR__ . '/config/session.php';
 require_once __DIR__ . '/config/db.php';
-$registrationEnabled = (bool)get_db()->query('SELECT id FROM administrators LIMIT 1')->fetchColumn();
+require_once __DIR__ . '/includes/contact_helpers.php';
+require_once __DIR__ . '/includes/mailer.php';
+$db = get_db();
+ensure_contact_messages_table($db);
+$registrationEnabled = (bool)$db->query('SELECT id FROM administrators LIMIT 1')->fetchColumn();
+$contactError = '';
+$contactValues = ['full_name' => '', 'email' => '', 'area' => '', 'message' => ''];
+if (empty($_SESSION['contact_csrf'])) $_SESSION['contact_csrf'] = bin2hex(random_bytes(32));
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['contact_submit']) || isset($_POST['contact_verify']))) {
+    foreach ($contactValues as $key => $_) {
+        $value = $_POST[$key] ?? '';
+        $contactValues[$key] = is_string($value) ? trim($value) : '';
+    }
+    $token = (string)($_POST['contact_csrf'] ?? '');
+    if (!hash_equals($_SESSION['contact_csrf'], $token)) {
+        $contactError = 'Your form session expired. Please refresh the page and try again.';
+    } elseif (isset($_POST['contact_verify'])) {
+        $pendingId = (int)($_SESSION['contact_pending_id'] ?? 0);
+        $pendingToken = (string)($_SESSION['contact_pending_token'] ?? '');
+        $code = trim((string)($_POST['verification_code'] ?? ''));
+        $stmt = $db->prepare('SELECT * FROM contact_messages WHERE id=? AND verification_token_hash=? AND email_verified=0 LIMIT 1');
+        $stmt->execute([$pendingId, hash('sha256', $pendingToken)]);
+        $pending = $stmt->fetch();
+        if (!$pending || !$pending['verification_expires_at'] || strtotime($pending['verification_expires_at']) < time()) {
+            unset($_SESSION['contact_pending_id'], $_SESSION['contact_pending_token']);
+            $contactError = 'That verification code expired. Please submit your message again.';
+        } elseif ((int)$pending['verification_attempts'] >= 5) {
+            unset($_SESSION['contact_pending_id'], $_SESSION['contact_pending_token']);
+            $contactError = 'Too many incorrect codes. Please submit your message again.';
+        } elseif (password_verify($code, (string)$pending['verification_code_hash'])) {
+            $db->prepare('UPDATE contact_messages SET email_verified=1,verified_at=NOW(),verification_code_hash=NULL,verification_token_hash=NULL,verification_expires_at=NULL WHERE id=?')
+                ->execute([$pendingId]);
+            send_contact_admin_notification((string)$pending['full_name'], (string)$pending['email'], $pending['area'] !== null ? (string)$pending['area'] : null, (string)$pending['message']);
+            unset($_SESSION['contact_pending_id'], $_SESSION['contact_pending_token']);
+            $_SESSION['contact_csrf'] = bin2hex(random_bytes(32));
+            header('Location: /disbasura/index.php?contact=verified');
+            exit;
+        } else {
+            $db->prepare('UPDATE contact_messages SET verification_attempts=verification_attempts+1 WHERE id=?')->execute([$pendingId]);
+            $contactError = 'That code did not match. Check the email and try again.';
+        }
+    } else {
+        $email = strtolower($contactValues['email']);
+        if ($contactValues['full_name'] === '' || strlen($contactValues['full_name']) > 120 ||
+            !filter_var($email, FILTER_VALIDATE_EMAIL) || strlen($email) > 190 ||
+            !preg_match('/@gmail\.com$/i', $email) || strlen($contactValues['area']) > 160 ||
+            $contactValues['message'] === '' || strlen($contactValues['message']) > 3000) {
+            $contactError = 'Enter a valid Gmail address, your name, and a message.';
+        } else {
+            $rate = $db->prepare('SELECT COUNT(*) FROM contact_messages WHERE email=? AND created_at >= DATE_SUB(NOW(), INTERVAL 1 HOUR)');
+            $rate->execute([$email]);
+            if ((int)$rate->fetchColumn() >= 3) {
+                $contactError = 'Too many verification attempts for this Gmail address. Please try again later.';
+            } else {
+                $code = (string)random_int(100000, 999999);
+                $sessionToken = bin2hex(random_bytes(32));
+                $stmt = $db->prepare('INSERT INTO contact_messages (full_name,email,area,message,verification_code_hash,verification_token_hash,verification_expires_at) VALUES (?,?,?,?,?,?,DATE_ADD(NOW(), INTERVAL 10 MINUTE))');
+                $stmt->execute([$contactValues['full_name'], $email, $contactValues['area'] ?: null, $contactValues['message'], password_hash($code, PASSWORD_DEFAULT), hash('sha256', $sessionToken)]);
+                $messageId = (int)$db->lastInsertId();
+                if (!send_contact_verification_email($email, $contactValues['full_name'], $code)) {
+                    $db->prepare('DELETE FROM contact_messages WHERE id=?')->execute([$messageId]);
+                    $contactError = 'We could not send a verification email. The Gmail sender must be configured by the system administrator.';
+                } else {
+                    $_SESSION['contact_pending_id'] = $messageId;
+                    $_SESSION['contact_pending_token'] = $sessionToken;
+                    header('Location: /disbasura/index.php?contact=verify');
+                    exit;
+                }
+            }
+        }
+    }
+}
+$contactPending = !empty($_SESSION['contact_pending_id']);
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -29,8 +102,8 @@ $registrationEnabled = (bool)get_db()->query('SELECT id FROM administrators LIMI
     .brand-tag{display:block;color:#44bd98;font-size:10px;font-weight:800;letter-spacing:.35px;text-transform:uppercase;margin-top:2px}
     .nav-links{display:flex;align-items:center;gap:10px;padding:6px;border:1px solid #152c3c;border-radius:17px;background:#030f19;color:#c3cfdb;font-weight:800;font-size:13px}
     .nav-links a,.nav-actions a{transition:color .18s,background .18s,border-color .18s,transform .18s}
-    .nav-links a{padding:10px 23px;border:1px solid #1c2d40;border-radius:14px;background:#091421}
-    .nav-links a:hover,.nav-links a.active{color:#21d6a1;border-color:#087c61;background:#002c24}
+    .nav-links a{padding:10px 23px;border:1px solid transparent;border-radius:14px;background:transparent}
+    .nav-links a:hover,.nav-links a:focus-visible,.nav-links a.active{color:#21d6a1;border-color:#087c61;background:#002c24}
     .nav-actions{display:flex;align-items:center;gap:12px;font-size:13px;font-weight:800;color:#d8e4e0}
     .login-link{padding:10px 20px;border:1px solid #0c6654;border-radius:14px;background:#071a20}
     .login-link:hover{color:#54e3b2;background:#0a3028}
@@ -114,6 +187,24 @@ $registrationEnabled = (bool)get_db()->query('SELECT id FROM administrators LIMI
     .feature-card{border:1px solid var(--line);background:#f8fafc;border-radius:24px;min-height:247px;padding:32px;box-shadow:0 2px 3px #0f172a08}
     .feature-icon{width:48px;height:48px;border-radius:13px;background:#d1fae8;color:#07845f;display:grid;place-items:center;margin-bottom:27px}
     .feature-icon svg{width:22px;height:22px}
+    .contact{background:#f4f8f6;color:#132035;padding:82px 20px}
+    .contact-card{width:min(100%,670px);margin:auto;padding:40px;border:1px solid #edf1f4;border-radius:24px;background:#fff;box-shadow:0 18px 32px #102b2417}
+    .contact-head{text-align:center;margin-bottom:30px}
+    .contact-badge{display:inline-block;margin-bottom:12px;padding:7px 14px;border-radius:20px;background:#d4f9e8;color:#07845f;font-size:11px;font-weight:800;letter-spacing:.7px}
+    .contact-head h2{font-size:30px;color:#101a30}
+    .contact-head p{max-width:500px;margin:9px auto 0;color:#61718a;font-size:14px;line-height:1.55}
+    .contact-alert{margin:0 0 18px;padding:12px 14px;border-radius:11px;font-size:13px;line-height:1.5}
+    .contact-alert.success{background:#e9f8ef;color:#167347}
+    .contact-alert.error{background:#fff0f0;color:#b42318}
+    .contact-form{display:grid;gap:16px}
+    .contact-field{display:grid;gap:7px;color:#34445d;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.25px}
+    .contact-field input,.contact-field textarea{width:100%;border:1px solid #dce4ee;border-radius:12px;background:#fff;padding:13px 15px;color:#172033;font:500 14px 'Plus Jakarta Sans',sans-serif;outline:none;transition:border-color .18s,box-shadow .18s}
+    .contact-field input{height:47px}
+    .contact-field textarea{min-height:105px;resize:vertical}
+    .contact-field input::placeholder,.contact-field textarea::placeholder{color:#94a2b8;font-weight:400}
+    .contact-field input:focus,.contact-field textarea:focus{border-color:#00a879;box-shadow:0 0 0 3px #00a8791c}
+    .contact-submit{height:52px;border:0;border-radius:12px;background:#06271e;color:#fff;font:800 14px 'Plus Jakarta Sans',sans-serif;cursor:pointer;box-shadow:0 3px 6px #061d1830;transition:background .18s,transform .18s}
+    .contact-submit:hover{background:#07845f;transform:translateY(-1px)}
     footer{background:#10182e;color:#fff;padding:32px 0}
     .footer-row{display:flex;align-items:center;justify-content:space-between;gap:24px}
     .footer-brand{display:flex;align-items:center;gap:12px;font-weight:700}
@@ -122,6 +213,7 @@ $registrationEnabled = (bool)get_db()->query('SELECT id FROM administrators LIMI
     .footer-links{display:flex;gap:26px;color:#a0aec1;font-size:13px;font-weight:700}
     @media(max-width:900px){.brand{min-width:auto;padding:8px 12px}.nav-links{gap:7px;padding:6px}.nav-links a{padding:11px 16px}.nav-actions{gap:9px}.steps{grid-template-columns:repeat(2,1fr)}.about-grid{gap:30px}.feature-grid{gap:18px}.feature-card{padding:25px}}
     @media(max-width:520px){.login-modal{padding:14px}.login-dialog{padding:30px 24px;border-radius:23px;max-height:calc(100vh - 28px);overflow-y:auto}.login-brand{margin-bottom:24px}.login-close{right:18px;top:18px}.login-heading{font-size:25px}}
+    @media(max-width:650px){.contact{padding:64px 15px}.contact-card{padding:29px 22px;border-radius:20px}.contact-head h2{font-size:27px}}
     @media(max-width:650px){.container{width:min(100% - 30px,1220px)}.site-header{height:82px}.brand{gap:9px;padding:6px 9px;border-radius:15px}.brand-mark{width:38px;height:38px}.brand-name{font-size:18px}.brand-tag{font-size:8px}.menu-toggle{display:block;margin-left:auto;width:40px;height:40px}.nav{gap:8px}.nav-links{display:none;position:absolute;left:15px;right:15px;top:75px;background:#031b16;padding:14px;border:1px solid #124437;border-radius:16px;flex-direction:column;align-items:stretch;gap:8px}.nav-links.open{display:flex}.nav-links a{text-align:center}.nav-actions{gap:7px;font-size:12px}.login-link{padding:9px 12px}.signup{padding:9px 13px}.hero{min-height:590px;padding:72px 18px}.badge{font-size:10px;padding:9px 13px;margin-bottom:30px}.hero h1{font-size:clamp(39px,11vw,58px);letter-spacing:-2.6px;line-height:.98}.hero p{font-size:15px}.hero-buttons{gap:10px}.button{min-width:0;padding:14px 18px;font-size:13px}.section,.features{padding:72px 0}.section-heading{margin-bottom:38px}h2{font-size:30px}.steps,.feature-grid{grid-template-columns:1fr}.step{min-height:0;padding:27px 24px}.about{padding:76px 0}.about-grid{grid-template-columns:1fr}.about-panel{min-height:310px;padding:30px}.footer-row{flex-direction:column;text-align:center}.footer-links{order:3}.copyright{order:2;line-height:1.6}}
     @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*:before,*:after{transition:none!important}}
   </style>
@@ -134,8 +226,8 @@ $registrationEnabled = (bool)get_db()->query('SELECT id FROM administrators LIMI
       <span><span class="brand-name">DisBasura</span><span class="brand-tag">Smart Garbage Collection</span></span>
     </a>
     <button class="menu-toggle" aria-label="Toggle navigation" aria-expanded="false">☰</button>
-    <nav class="nav-links" aria-label="Main navigation"><a href="#home">HOME</a><a href="#about">ABOUT US</a><a href="#services">SERVICES</a></nav>
-    <div class="nav-actions"><a class="login-link" href="#login" data-open-login>Sign in</a><a class="signup" href="<?= $registrationEnabled ? '/disbasura/register.php' : '/disbasura/admin/login.php' ?>"><?= $registrationEnabled ? 'Sign up' : 'Admin Setup' ?></a></div>
+    <nav class="nav-links" aria-label="Main navigation"><a href="#home">HOME</a><a href="#about">ABOUT US</a><a href="#services">SERVICES</a><a href="#contacts">CONTACTS</a></nav>
+    <div class="nav-actions"><a class="login-link" href="#login" data-open-login>Sign in</a><a class="signup" href="/disbasura/register.php">Sign up</a></div>
   </div>
 </header>
 <main>
@@ -143,7 +235,7 @@ $registrationEnabled = (bool)get_db()->query('SELECT id FROM administrators LIMI
     <div class="hero-content">
       <h1>Smart &amp; Efficient<span>Garbage Collection</span><span>System</span></h1>
       <p>A centralized barangay-level waste collection platform connecting administrators, sitio residents, and truck collectors seamlessly.</p>
-      <div class="hero-buttons"><a class="button button-primary" href="<?= $registrationEnabled ? '/disbasura/register.php' : '/disbasura/admin/login.php' ?>"><?= $registrationEnabled ? 'Get Started' : 'Set Up Admin' ?></a><a class="button button-secondary" href="#workflow">How It Works</a></div>
+      <div class="hero-buttons"><a class="button button-primary" href="<?= $registrationEnabled ? '/disbasura/register.php' : '/disbasura/admin/setup.php' ?>"><?= $registrationEnabled ? 'Get Started' : 'Set Up Admin' ?></a><a class="button button-secondary" href="#workflow">How It Works</a></div>
     </div>
   </section>
   <section class="section workflow" id="workflow">
@@ -170,6 +262,32 @@ $registrationEnabled = (bool)get_db()->query('SELECT id FROM administrators LIMI
         <article class="feature-card"><div class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9ZM10 21h4"/></svg></div><h3>Special Pickup Requests</h3><p>Residents can request special bulk disposal pickups directly through the portal with instant admin approval tracking.</p></article>
         <article class="feature-card"><div class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M6 2h9l5 5v15H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2Z"/><path d="M14 2v6h6M8 13h8M8 17h8M8 9h2"/></svg></div><h3>Dispute &amp; Missed Resolution</h3><p>Instant reporting for missed collections helps barangay captains resolve residents' concerns quickly.</p></article>
       </div>
+    </div>
+  </section>
+  <section class="contact" id="contacts">
+    <div class="contact-card">
+      <div class="contact-head"><span class="contact-badge">GET IN TOUCH</span><h2>Contact Us</h2><p>Have questions about implementing DisBasura in your barangay or experiencing collection issues? Send us a message!</p></div>
+      <?php if (($_GET['contact'] ?? '') === 'verified'): ?><div class="contact-alert success" role="status">Your Gmail address is confirmed. The admin can now review your message and reply to that inbox.</div><?php endif; ?>
+      <?php if ($contactError !== ''): ?><div class="contact-alert error" role="alert"><?= htmlspecialchars($contactError, ENT_QUOTES, 'UTF-8') ?></div><?php endif; ?>
+      <?php if ($contactPending): ?>
+      <div class="contact-alert success" role="status">We sent a 6-digit verification code to your Gmail address. Enter it below to confirm your message.</div>
+      <form class="contact-form" action="/disbasura/index.php?contact=verify" method="post">
+        <input type="hidden" name="contact_submit" value="1">
+        <input type="hidden" name="contact_csrf" value="<?= htmlspecialchars($_SESSION['contact_csrf'], ENT_QUOTES, 'UTF-8') ?>">
+        <label class="contact-field">Gmail Verification Code<input type="text" name="verification_code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" placeholder="Enter the 6-digit code" required></label>
+        <button class="contact-submit" type="submit" name="contact_verify" value="1">Verify Gmail and Send Message</button>
+      </form>
+      <?php else: ?>
+      <form class="contact-form" action="/disbasura/index.php" method="post">
+        <input type="hidden" name="contact_submit" value="1">
+        <input type="hidden" name="contact_csrf" value="<?= htmlspecialchars($_SESSION['contact_csrf'], ENT_QUOTES, 'UTF-8') ?>">
+        <label class="contact-field">Full Name<input type="text" name="full_name" placeholder="e.g. Juan Dela Cruz" maxlength="120" value="<?= htmlspecialchars($contactValues['full_name'], ENT_QUOTES, 'UTF-8') ?>" required></label>
+        <label class="contact-field">Email Address<input type="email" name="email" placeholder="name@gmail.com" maxlength="190" value="<?= htmlspecialchars($contactValues['email'], ENT_QUOTES, 'UTF-8') ?>" required></label>
+        <label class="contact-field">Sitio / Area<input type="text" name="area" placeholder="e.g. Sitio Central" maxlength="160" value="<?= htmlspecialchars($contactValues['area'], ENT_QUOTES, 'UTF-8') ?>"></label>
+        <label class="contact-field">Message / Issue<textarea name="message" placeholder="How can we help you?" maxlength="3000" required><?= htmlspecialchars($contactValues['message'], ENT_QUOTES, 'UTF-8') ?></textarea></label>
+        <button class="contact-submit" type="submit">Send Message</button>
+      </form>
+      <?php endif; ?>
     </div>
   </section>
 </main>
@@ -205,7 +323,7 @@ $registrationEnabled = (bool)get_db()->query('SELECT id FROM administrators LIMI
   const menuButton=document.querySelector('.menu-toggle');
   const navLinks=document.querySelector('.nav-links');
   menuButton.addEventListener('click',()=>{const open=navLinks.classList.toggle('open');menuButton.setAttribute('aria-expanded',String(open));});
-  navLinks.addEventListener('click',event=>{if(event.target.closest('a')){navLinks.classList.remove('open');menuButton.setAttribute('aria-expanded','false');}});
+  navLinks.addEventListener('click',event=>{const link=event.target.closest('a');if(link){navLinks.querySelectorAll('a').forEach(item=>item.classList.remove('active'));link.classList.add('active');navLinks.classList.remove('open');menuButton.setAttribute('aria-expanded','false');}});
   const loginModal=document.getElementById('login-modal');
   const openLogin=()=>{loginModal.classList.add('open');loginModal.setAttribute('aria-hidden','false');document.body.classList.add('modal-open');loginModal.querySelector('input').focus();};
   const closeLogin=()=>{loginModal.classList.remove('open');loginModal.setAttribute('aria-hidden','true');document.body.classList.remove('modal-open');};
@@ -217,6 +335,31 @@ $registrationEnabled = (bool)get_db()->query('SELECT id FROM administrators LIMI
   document.addEventListener('keydown',event=>{if(event.key==='Escape'&&loginModal.classList.contains('open'))closeLogin();});
   const query=new URLSearchParams(location.search);
   if(query.has('show_login')||query.has('login_error')||query.has('registered'))openLogin();
+  document.addEventListener('submit',async event=>{
+    const form=event.target.closest('#contacts .contact-card form.contact-form');
+    if(!form)return;
+    event.preventDefault();
+    const submitButton=form.querySelector('button[type="submit"]');
+    if(submitButton){submitButton.disabled=true;submitButton.dataset.originalText=submitButton.textContent;submitButton.textContent='Sending…';}
+    try{
+      const formData=new FormData(form);
+      if(event.submitter&&event.submitter.name)formData.append(event.submitter.name,event.submitter.value);
+      const response=await fetch(form.action,{method:'POST',body:formData,credentials:'same-origin'});
+      const html=await response.text();
+      const parsed=new DOMParser().parseFromString(html,'text/html');
+      const updatedCard=parsed.querySelector('#contacts .contact-card');
+      const currentCard=document.querySelector('#contacts .contact-card');
+      if(!response.ok||!updatedCard||!currentCard)throw new Error('The response could not be loaded. Please try again.');
+      currentCard.replaceWith(updatedCard);
+      const codeInput=updatedCard.querySelector('input[name="verification_code"]');
+      if(codeInput)codeInput.focus({preventScroll:true});
+    }catch(error){
+      if(submitButton){submitButton.disabled=false;submitButton.textContent=submitButton.dataset.originalText||'Send Message';}
+      let notice=form.querySelector('.contact-submit-error');
+      if(!notice){notice=document.createElement('div');notice.className='contact-alert error contact-submit-error';notice.setAttribute('role','alert');form.prepend(notice);}
+      notice.textContent=error.message||'Unable to send right now. Please try again.';
+    }
+  });
 </script>
 </body>
 </html>

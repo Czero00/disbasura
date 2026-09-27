@@ -2,6 +2,7 @@
 require_once __DIR__ . '/../config/session.php';
 require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/../includes/contact_validation.php';
+require_once __DIR__ . '/../includes/mailer.php';
 
 if (isset($_SESSION['admin_id']) && $_SESSION['admin_role'] === 'admin') {
     header('Location: /disbasura/admin/dashboard.php'); exit;
@@ -10,41 +11,102 @@ if (isset($_SESSION['admin_id']) && $_SESSION['admin_role'] === 'admin') {
 $db = get_db();
 try { $db->exec("ALTER TABLE administrators ADD COLUMN IF NOT EXISTS phone VARCHAR(50) NULL"); } catch(Exception $e){}
 $no_admin = !$db->query("SELECT id FROM administrators LIMIT 1")->fetch();
+$isSetupRoute = basename($_SERVER['SCRIPT_NAME'] ?? '') === 'setup.php';
+if ($no_admin && !$isSetupRoute) { header('Location: /disbasura/admin/setup.php'); exit; }
+if (!$no_admin && $isSetupRoute) { header('Location: /disbasura/admin/login.php'); exit; }
 $error = '';
+$setupCsrf = $_SESSION['admin_setup_csrf'] ??= bin2hex(random_bytes(32));
+if (isset($_GET['cancel_setup'])) unset($_SESSION['admin_setup_pending']);
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    if ($no_admin && isset($_POST['full_name'])) {
-        // Serialize first-admin setup so only one account can be created on a fresh database.
-        $lock = (int)$db->query("SELECT GET_LOCK('disbasura_first_admin_setup', 5)")->fetchColumn();
-        $no_admin = !$db->query("SELECT id FROM administrators LIMIT 1")->fetch();
-        $fn=trim($_POST['full_name']);
-        $un=trim($_POST['username']); $em=trim($_POST['email']); $pw=$_POST['password'];
-        $em = normalize_contact_email($em) ?? '';
-        $phone = normalize_ph_mobile($_POST['phone'] ?? '') ?? '';
-        if (preg_match('/^AD-/i', $un)) $un='AD-'.substr($un, 3);
-        if ($lock !== 1) {
-            $error = 'Admin setup is busy. Please try again.';
-        } elseif (!preg_match('/^AD-[a-zA-Z0-9_]+$/', $un)) {
-            $error = 'Admin username must start with AD- (example: AD-rey).';
-        } elseif (!$em) {
-            $error = 'Enter a valid email address from a domain that can receive email.';
+    $postedCsrf = (string)($_POST['setup_csrf'] ?? '');
+    if (isset($_POST['verify_admin_email'])) {
+        $pending = $_SESSION['admin_setup_pending'] ?? null;
+        $code = trim((string)($_POST['verification_code'] ?? ''));
+        if (!hash_equals($setupCsrf, $postedCsrf)) {
+            $error = 'Your setup session expired. Refresh the page and try again.';
+        } elseif (!$no_admin) {
+            unset($_SESSION['admin_setup_pending']);
+            $error = 'The first admin account has already been created. Please sign in.';
+        } elseif (!$pending || (int)$pending['expires_at'] < time()) {
+            unset($_SESSION['admin_setup_pending']);
+            $error = 'The verification code expired. Start the setup again.';
+        } elseif ((int)$pending['attempts'] >= 5) {
+            unset($_SESSION['admin_setup_pending']);
+            $error = 'Too many incorrect codes. Start the setup again.';
+        } elseif (!password_verify($code, $pending['code_hash'])) {
+            $_SESSION['admin_setup_pending']['attempts']++;
+            $error = 'That code did not match. Check your Gmail and try again.';
+        } else {
+            $lock = (int)$db->query("SELECT GET_LOCK('disbasura_first_admin_setup', 5)")->fetchColumn();
+            if ($lock !== 1) {
+                $error = 'Admin setup is busy. Please try again.';
+            } else {
+                try {
+                    $no_admin = !$db->query('SELECT id FROM administrators LIMIT 1')->fetch();
+                    if (!$no_admin) {
+                        $error = 'The first admin account has already been created. Please sign in.';
+                    } elseif (contact_email_exists($db, $pending['email']) || contact_phone_exists($db, $pending['phone'])) {
+                        $error = 'That email or phone number is already used by another account.';
+                    } else {
+                        $nameCheck = $db->prepare('SELECT id FROM administrators WHERE username=? LIMIT 1');
+                        $nameCheck->execute([$pending['username']]);
+                        if ($nameCheck->fetchColumn()) {
+                            $error = 'That admin username is already in use. Start the setup again.';
+                        } else {
+                            $db->prepare('INSERT INTO administrators (full_name,username,email,phone,password) VALUES (?,?,?,?,?)')
+                                ->execute([$pending['full_name'], $pending['username'], $pending['email'], $pending['phone'], $pending['password_hash']]);
+                            unset($_SESSION['admin_setup_pending']);
+                            $_SESSION['admin_setup_csrf'] = bin2hex(random_bytes(32));
+                            header('Location: /disbasura/admin/login.php?setup=complete');
+                            exit;
+                        }
+                    }
+                } finally {
+                    $db->query("SELECT RELEASE_LOCK('disbasura_first_admin_setup')");
+                }
+            }
+        }
+    } elseif ($no_admin && isset($_POST['start_admin_setup'])) {
+        $fn = trim((string)($_POST['full_name'] ?? ''));
+        $un = trim((string)($_POST['username'] ?? ''));
+        $em = normalize_contact_email((string)($_POST['email'] ?? '')) ?? '';
+        $pw = (string)($_POST['password'] ?? '');
+        $phone = normalize_ph_mobile((string)($_POST['phone'] ?? '')) ?? '';
+        if (preg_match('/^AD-/i', $un)) $un = 'AD-' . substr($un, 3);
+        if (!hash_equals($setupCsrf, $postedCsrf)) {
+            $error = 'Your setup session expired. Refresh the page and try again.';
+        } elseif (!$fn || strlen($fn) > 100 || !preg_match('/^AD-[a-zA-Z0-9_]+$/', $un)) {
+            $error = 'Enter your name and an admin username beginning with AD-.';
+        } elseif (!$em || !preg_match('/@gmail\.com$/i', $em)) {
+            $error = 'Use a valid Gmail address. We will send a code to verify that you can receive email there.';
         } elseif (!$phone) {
             $error = 'Enter a valid Philippine mobile number (09XXXXXXXXX or +639XXXXXXXXX).';
-        } elseif ($fn && $un && $em && $pw) {
-            if (!$no_admin) {
-                $error = 'The first admin account has already been created. Please sign in.';
-            } elseif (contact_email_exists($db, $em) || contact_phone_exists($db, $phone)) {
-                $error = 'That email or phone number is already used by another account.';
-            } else {
-                $db->prepare("INSERT INTO administrators (full_name,username,email,phone,password) VALUES (?,?,?,?,?)")
-                   ->execute([$fn,$un,$em,$phone,password_hash($pw,PASSWORD_BCRYPT)]);
-                $db->query("SELECT RELEASE_LOCK('disbasura_first_admin_setup')");
-                header('Location: /disbasura/admin/login.php'); exit;
-            }
+        } elseif (strlen($pw) < 10) {
+            $error = 'Choose a password with at least 10 characters.';
+        } elseif (contact_email_exists($db, $em) || contact_phone_exists($db, $phone)) {
+            $error = 'That email or phone number is already used by another account.';
         } else {
-            $error = 'All fields required.';
+            $code = (string)random_int(100000, 999999);
+            if (!send_admin_setup_verification_email($em, $fn, $code)) {
+                $error = 'We could not send the verification code. The system Gmail sender must be configured first.';
+            } else {
+                $_SESSION['admin_setup_pending'] = [
+                    'full_name' => $fn,
+                    'username' => $un,
+                    'email' => $em,
+                    'phone' => $phone,
+                    'password_hash' => password_hash($pw, PASSWORD_DEFAULT),
+                    'code_hash' => password_hash($code, PASSWORD_DEFAULT),
+                    'expires_at' => time() + 600,
+                    'attempts' => 0,
+                ];
+                header('Location: /disbasura/admin/setup.php?setup=verify');
+                exit;
+            }
         }
-        $db->query("SELECT RELEASE_LOCK('disbasura_first_admin_setup')");
+    } elseif ($no_admin) {
+        $error = 'Complete the one-time admin setup form.';
     } else {
         // The login form accepts either the admin username or registered email.
         // The login form accepts either the admin username or registered email.
@@ -145,7 +207,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <h2>First Time Setup</h2>
         <div class="auth-notice">⚙️ <strong>Welcome!</strong> Create your admin account to get started. This only appears once.</div>
         <?php if($error): ?><div class="alert-error"><?= htmlspecialchars($error) ?></div><?php endif; ?>
+        <?php if (!empty($_SESSION['admin_setup_pending'])): $pendingAdmin = $_SESSION['admin_setup_pending']; ?>
+          <p style="margin:0 0 1rem;color:#637368;font-size:.9rem">A 6-digit code was sent to <strong><?= htmlspecialchars($pendingAdmin['email'], ENT_QUOTES, 'UTF-8') ?></strong>. It expires in 10 minutes.</p>
+          <form method="POST">
+            <input type="hidden" name="setup_csrf" value="<?= htmlspecialchars($setupCsrf, ENT_QUOTES, 'UTF-8') ?>"/>
+            <div class="field"><input type="text" name="verification_code" placeholder="6-digit Gmail code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code" required/></div>
+            <button type="submit" name="verify_admin_email" value="1" class="btn-primary">Verify Gmail &amp; Create Admin</button>
+          </form>
+          <p style="margin-top:1rem;text-align:center;font-size:.82rem"><a href="/disbasura/admin/setup.php?cancel_setup=1">Use another email or start again</a></p>
+        <?php else: ?>
         <form method="POST">
+          <input type="hidden" name="setup_csrf" value="<?= htmlspecialchars($setupCsrf, ENT_QUOTES, 'UTF-8') ?>"/>
+          <input type="hidden" name="start_admin_setup" value="1"/>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:.6rem;margin-bottom:.75rem">
             <div class="field" style="margin-bottom:0">
               <input type="text" name="full_name" placeholder="Full Name" class="no-icon" required/>
@@ -158,19 +231,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <span class="field-icon">
               <svg width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M22 7l-10 7L2 7"/></svg>
             </span>
-            <input type="email" name="email" placeholder="Email address" required/>
+            <input type="email" name="email" placeholder="Admin Gmail address" autocomplete="email" required/>
           </div>
-          <div class="field"><input type="tel" name="phone" placeholder="Mobile number (09XXXXXXXXX)" required autocomplete="tel"/></div>
+          <div class="field"><label for="adminSetupPhone">Mobile number *</label><input id="adminSetupPhone" type="tel" name="phone" value="<?= htmlspecialchars($_POST['phone'] ?? '+63', ENT_QUOTES, 'UTF-8') ?>" placeholder="+63 9XXXXXXXXX" inputmode="tel" maxlength="13" required autocomplete="tel"/><small>Enter your 10-digit mobile number after +63.</small></div>
           <div class="field">
             <span class="field-icon">
               <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/><circle cx="12" cy="16" r="1.5" fill="currentColor"/></svg>
             </span>
-            <input type="password" name="password" placeholder="Password" required/>
+            <input type="password" name="password" placeholder="Password (10+ characters)" minlength="10" autocomplete="new-password" required/>
           </div>
-          <button type="submit" class="btn-primary">Create Admin Account</button>
+          <button type="submit" class="btn-primary">Verify Gmail &amp; Continue</button>
         </form>
+        <?php endif; ?>
       <?php else: ?>
         <h2>Log In</h2>
+        <?php if (($_GET['setup'] ?? '') === 'complete'): ?><div class="auth-notice">Admin account created successfully. Gmail ownership was verified. Sign in to continue.</div><?php endif; ?>
         <?php if($error): ?><div class="alert-error"><?= htmlspecialchars($error) ?></div><?php endif; ?>
         <form method="POST">
           <div class="field">

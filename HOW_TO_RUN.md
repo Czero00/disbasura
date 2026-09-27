@@ -17,7 +17,7 @@
    This one file is the complete, current database — nothing else to import.
 
 ## ═══ STEP 3: CREATE ADMIN ═══
-1. Go to: http://localhost/disbasura/admin/login.php
+1. Go to: http://localhost/disbasura/admin/setup.php
 2. First time → you'll see "First Time Setup"
 3. Fill in your Name, Username, Email, Password
 4. Click Create Admin Account
@@ -32,6 +32,13 @@
    ```
 3. Set the sender name to the one approved for your Semaphore account. SMS alerts are sent when schedules or announcements are published and when a collection is completed. Resident phone numbers saved at sign-up are used as SMS destinations.
 4. Without a valid API key, in-app notifications continue to work and SMS delivery remains disabled.
+
+## CONTACT EMAIL VERIFICATION AND ADMIN REPLIES
+1. Install the mail dependency once from the project folder: `composer install`.
+2. Copy `config/mail.local.example.php` to `config/mail.local.php`.
+3. Put the sender Gmail address and its Google App Password in `mail.local.php`. Do not put your normal Gmail password there, commit the local file, or share the App Password.
+4. The first admin setup also requires a Gmail address and verifies it with a one-time code before creating the single admin account. Contact Us accepts Gmail addresses and emails a code. Admins can review verified messages from the **Contact Inbox** item in the admin sidebar and reply to the verified Gmail address.
+5. The sender Gmail account must allow SMTP with an App Password. Until `mail.local.php` is configured, verification codes and replies cannot be sent.
 
 ## ═══ STEP 4: ALL LOGIN URLS ═══
 | Role       | URL                                              |
