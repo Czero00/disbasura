@@ -1,10 +1,13 @@
 <?php
 require_once __DIR__ . '/../middleware/resident_auth.php';
 require_once __DIR__ . '/../includes/helpers.php';
+require_once __DIR__ . '/../includes/payment_helpers.php';
 require_once __DIR__ . '/../config/sms.php';
 if ($_SESSION['role'] === 'leader') { header('Location: /disbasura/leader/dashboard.php'); exit; }
 
 $db    = get_db();
+ensure_pickup_payment_tables($db);
+$paymentSettings = get_pickup_payment_settings($db);
 $uid   = $_SESSION['user_id'];
 $sitio = $_SESSION['sitio'] ?? '';
 $prefs = get_preferences($uid);
@@ -12,6 +15,32 @@ $lang  = get_lang($uid);
 
 // Handle POST
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (isset($_POST['submit_pickup_payment'])) {
+        $rid = (int)($_POST['request_id'] ?? 0);
+        $reqStmt = $db->prepare("SELECT * FROM requests WHERE id=? AND resident_id=? AND status='approved'");
+        $reqStmt->execute([$rid, $uid]); $req = $reqStmt->fetch();
+        $latest = $req ? get_latest_pickup_payment($db, $rid) : null;
+        $method = ($_POST['payment_method'] ?? '') === 'cash' ? 'cash' : 'qrph';
+        $methodEnabled = $method === 'cash' ? !empty($paymentSettings['allow_cash']) : !empty($paymentSettings['allow_qrph']);
+        if ($req && is_pickup_payment_required($paymentSettings) && $methodEnabled && (!$latest || $latest['status'] === 'rejected')) {
+            $reference = trim($_POST['reference_number'] ?? '');
+            $proof = null;
+            if ($method === 'qrph') {
+                if (!empty($_FILES['payment_proof']['name']) && ($_FILES['payment_proof']['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_OK) {
+                    $proof = save_upload($_FILES['payment_proof'], "payment_{$rid}_{$uid}");
+                }
+                if (!$proof || $reference === '') {
+                    $_SESSION['payment_error'] = 'For QR/e-wallet payments, add the transaction reference and upload a clear receipt photo.';
+                    header('Location: /disbasura/resident/dashboard.php'); exit;
+                }
+            }
+            $db->prepare("INSERT INTO pickup_payments (request_id,resident_id,amount,method,reference_number,proof_photo,status) VALUES (?,?,?,?,?,?,'pending')")
+                ->execute([$rid, $uid, (float)$paymentSettings['fee'], $method, $reference ?: null, $proof]);
+            notify_all_admins($db, "Resident submitted a special pickup payment for request #{$rid}; please verify it.");
+            notify_user($db, $uid, 'Your payment submission is waiting for admin verification.');
+        }
+        header('Location: /disbasura/resident/dashboard.php'); exit;
+    }
     if (isset($_POST['cancel_request'])) {
         $rid = (int)$_POST['rid'];
         $db->prepare("DELETE FROM requests WHERE id=? AND resident_id=? AND status='pending'")->execute([$rid,$uid]);
@@ -496,11 +525,13 @@ $dark = $prefs['dark_mode'] ? 'dark' : '';
 
     <!-- ── My Pickup Requests ── -->
     <div class="panel fade-up">
+      <?php if (!empty($_SESSION['payment_error'])): ?><div style="margin-bottom:.75rem;color:#a33"><?= e((string)$_SESSION['payment_error']); unset($_SESSION['payment_error']); ?></div><?php endif; ?>
       <div class="panel-hd">
         <h3><?= $lang['my_requests'] ?></h3>
         <a href="/disbasura/resident/submit-request.php" style="font-size:.78rem;color:#1e6b3c;font-weight:700;text-decoration:none">+ <?= $lang['new_request'] ?></a>
       </div>
       <?php if($my_requests): foreach($my_requests as $r): ?>
+      <?php $pickupPayment = get_latest_pickup_payment($db, (int)$r['id']); ?>
       <div class="req-item">
         <div class="req-meta" style="flex:1;min-width:0">
           <strong><?= e($r['waste_type']) ?></strong>
@@ -510,6 +541,29 @@ $dark = $prefs['dark_mode'] ? 'dark' : '';
         </div>
         <div style="display:flex;flex-wrap:wrap;align-items:center;gap:.4rem;flex-shrink:0">
           <span class="badge <?= $r['status'] ?>"><?= e($r['status']) ?></span>
+          <?php if (is_pickup_payment_required($paymentSettings) && in_array($r['status'], ['approved','assigned','completed'], true)): ?>
+            <?php if ($pickupPayment && $pickupPayment['status']==='paid'): ?>
+              <span class="badge completed">Paid · ₱<?= number_format((float)$pickupPayment['amount'],2) ?></span>
+            <?php elseif ($pickupPayment && $pickupPayment['status']==='pending'): ?>
+              <span class="badge pending">Payment pending verification</span>
+            <?php elseif ($r['status']==='approved'): ?>
+              <form method="POST" enctype="multipart/form-data" style="display:flex;flex-wrap:wrap;gap:.35rem;align-items:center">
+                <input type="hidden" name="request_id" value="<?= (int)$r['id'] ?>"><input type="hidden" name="submit_pickup_payment" value="1">
+                <select name="payment_method" onchange="this.form.querySelector('.payment-qr-fields').style.display=this.value==='qrph'?'flex':'none'" style="font:inherit;font-size:.72rem;border:1px solid #cfe2d5;border-radius:8px;padding:.35rem">
+                  <?php if (!empty($paymentSettings['allow_qrph'])): ?><option value="qrph">QR Ph / e-wallet</option><?php endif; ?>
+                  <?php if (!empty($paymentSettings['allow_cash'])): ?><option value="cash">Cash at office</option><?php endif; ?>
+                </select>
+                <div class="payment-qr-fields" style="display:flex;gap:.3rem;flex-wrap:wrap;align-items:center"><input name="reference_number" placeholder="Transaction reference" style="width:145px;font-size:.72rem"><input type="file" name="payment_proof" accept="image/*" style="max-width:145px;font-size:.7rem"></div>
+                <button type="submit" class="btn-approve" style="font-size:.72rem;padding:.35rem .6rem">Pay ₱<?= number_format((float)$paymentSettings['fee'],2) ?></button>
+              </form>
+              <?php if ($pickupPayment && $pickupPayment['status']==='rejected'): ?><small style="width:100%;color:#a33">Previous attempt rejected<?= $pickupPayment['admin_note'] ? ': '.e($pickupPayment['admin_note']) : '' ?>. Submit a corrected payment below.</small><?php endif; ?>
+              <?php if (!empty($paymentSettings['merchant_name'])): ?><small style="width:100%;color:var(--text-mid)">Payee: <?= e((string)$paymentSettings['merchant_name']) ?></small><?php endif; ?>
+              <?php if (!empty($paymentSettings['instructions'])): ?><small style="width:100%;color:var(--text-mid)"><?= nl2br(e((string)$paymentSettings['instructions'])) ?></small><?php endif; ?>
+              <?php if (!empty($paymentSettings['qr_image'])): ?><a href="/disbasura/uploads/<?= e($paymentSettings['qr_image']) ?>" target="_blank" style="font-size:.72rem">View barangay QR</a><?php endif; ?>
+            <?php elseif ($pickupPayment && $pickupPayment['status']==='rejected'): ?>
+              <span style="font-size:.72rem;color:#a33">Payment rejected<?= $pickupPayment['admin_note'] ? ': '.e($pickupPayment['admin_note']) : '' ?>. You may resubmit.</span>
+            <?php else: ?><span style="font-size:.72rem;color:var(--text-mid)">Payment required before assignment</span><?php endif; ?>
+          <?php endif; ?>
           <?php if($r['status']==='pending'): ?>
           <form method="POST" onsubmit="return confirm('Cancel this request?')" style="display:inline">
             <input type="hidden" name="cancel_request" value="1">

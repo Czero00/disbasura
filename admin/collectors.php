@@ -1,8 +1,10 @@
 <?php
 require_once __DIR__ . '/../middleware/admin_auth.php';
 require_once __DIR__ . '/../includes/helpers.php';
+require_once __DIR__ . '/../includes/contact_validation.php';
 require_once __DIR__ . '/../includes/base_admin.php';
 $db = get_db();
+try { $db->exec("ALTER TABLE collectors ADD COLUMN IF NOT EXISTS email VARCHAR(255) NULL"); } catch(Exception $e){}
 // Fix collectors.status ENUM if 'sick' or 'unavailable' are missing
 try {
     $db->exec("ALTER TABLE collectors MODIFY COLUMN status ENUM('available','sick','unavailable') NOT NULL DEFAULT 'available'");
@@ -21,11 +23,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $_SESSION['collector_form_error'] = 'Collector usernames must start with CT- (example: CT-juan).';
             header('Location: /disbasura/admin/collectors.php'); exit;
         }
+        $email = normalize_contact_email($_POST['email'] ?? '');
+        $phone = normalize_ph_mobile($_POST['phone'] ?? '');
+        if (!$email || !$phone) {
+            $_SESSION['collector_form_error'] = 'Enter a valid email with an active mail domain and a Philippine mobile number (09XXXXXXXXX or +639XXXXXXXXX).';
+            header('Location: /disbasura/admin/collectors.php'); exit;
+        }
+        if (contact_email_exists($db, $email) || contact_phone_exists($db, $phone)) {
+            $_SESSION['collector_form_error'] = 'That email or phone number is already used by another account.';
+            header('Location: /disbasura/admin/collectors.php'); exit;
+        }
         $pw = password_hash($password, PASSWORD_BCRYPT);
-        $db->prepare("INSERT INTO collectors (full_name,sitio,phone,username,password) VALUES (?,?,?,?,?)")
-           ->execute([trim($_POST['full_name']),$_POST['sitio'],$_POST['phone'],$un,$pw]);
+        $db->prepare("INSERT INTO collectors (full_name,sitio,email,phone,username,password) VALUES (?,?,?,?,?,?)")
+           ->execute([trim($_POST['full_name']),$_POST['sitio'],$email,$phone,$un,$pw]);
     } elseif (isset($_POST['edit_collector'])) {
         $cid=(int)$_POST['id'];
+        $email = normalize_contact_email($_POST['email'] ?? '');
+        $phone = normalize_ph_mobile($_POST['phone'] ?? '');
+        if (!$email || !$phone) {
+            $_SESSION['collector_form_error'] = 'Enter a valid email with an active mail domain and a Philippine mobile number (09XXXXXXXXX or +639XXXXXXXXX).';
+            header('Location: /disbasura/admin/collectors.php'); exit;
+        }
+        if (contact_email_exists($db, $email, 'collectors', $cid) || contact_phone_exists($db, $phone, 'collectors', $cid)) {
+            $_SESSION['collector_form_error'] = 'That email or phone number is already used by another account.';
+            header('Location: /disbasura/admin/collectors.php'); exit;
+        }
         $newUsername = trim($_POST['username'] ?? '');
         if ($newUsername !== '') {
             if (!preg_match('/^CT-[a-zA-Z0-9_]+$/i', $newUsername)) {
@@ -34,8 +56,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
             $newUsername = 'CT-' . substr($newUsername, 3);
         }
-        $db->prepare("UPDATE collectors SET full_name=?,sitio=?,phone=? WHERE id=?")
-           ->execute([trim($_POST['full_name']),$_POST['sitio'],$_POST['phone'],$cid]);
+        $db->prepare("UPDATE collectors SET full_name=?,sitio=?,email=?,phone=? WHERE id=?")
+           ->execute([trim($_POST['full_name']),$_POST['sitio'],$email,$phone,$cid]);
         if($newUsername !== '') $db->prepare("UPDATE collectors SET username=? WHERE id=?")->execute([$newUsername,$cid]);
         if($_POST['password']) $db->prepare("UPDATE collectors SET password=? WHERE id=?")->execute([password_hash($_POST['password'],PASSWORD_BCRYPT),$cid]);
     } elseif (isset($_POST['delete_collector'])) {
@@ -74,6 +96,7 @@ render_admin_header('collectors',$unread,'Collectors — DisBasura Admin');
       <span>📍 <?= htmlspecialchars($c['sitio']) ?></span>
       <span>📞 <?= htmlspecialchars($c['phone']??'No phone') ?></span>
       <?php if($c['username']): ?><span class="collector-login-tag">🔑 Login: <code><?= htmlspecialchars($c['username']) ?></code></span><?php else: ?><span class="collector-login-tag no-login">No login account</span><?php endif; ?>
+      <span>Email: <?= htmlspecialchars($c['email'] ?? 'No email') ?></span>
       <div class="collector-stats">
         <span class="c-stat"><?= $c['schedule_count'] ?> schedules</span>
         <span class="c-stat"><?= $c['request_count'] ?> requests</span>
@@ -108,7 +131,8 @@ render_admin_header('collectors',$unread,'Collectors — DisBasura Admin');
     <form method="POST"><input type="hidden" name="add_collector" value="1">
       <div class="field"><label>Full Name</label><input type="text" name="full_name" placeholder="Juan Santos" required/></div>
       <div class="field"><label>Sitio</label><select name="sitio" required><option value="">Select sitio</option><?php foreach($sitios_list as $s): ?><option><?= htmlspecialchars($s) ?></option><?php endforeach; ?></select></div>
-      <div class="field"><label>Phone</label><input type="tel" name="phone" placeholder="09XX XXX XXXX"/></div>
+      <div class="field"><label>Email *</label><input type="email" name="email" placeholder="collector@example.com" required autocomplete="email"/></div>
+      <div class="field"><label>Phone *</label><input type="tel" name="phone" placeholder="09XXXXXXXXX or +639XXXXXXXXX" required autocomplete="tel"/></div>
       <hr style="border:none;border-top:1px solid var(--border);margin:1rem 0">
       <div class="field"><label>Username * (must start with CT-)</label><input type="text" name="username" placeholder="CT-juan" autocomplete="username" required/></div>
       <div class="field"><label>Password *</label><input type="password" name="password" autocomplete="new-password" required/></div>
@@ -123,7 +147,8 @@ render_admin_header('collectors',$unread,'Collectors — DisBasura Admin');
     <form method="POST" id="editColForm"><input type="hidden" name="edit_collector" value="1"><input type="hidden" name="id" id="ec_id">
       <div class="field"><label>Full Name</label><input type="text" name="full_name" id="ec_name" required/></div>
       <div class="field"><label>Sitio</label><select name="sitio" id="ec_sitio" required><?php foreach($sitios_list as $s): ?><option><?= htmlspecialchars($s) ?></option><?php endforeach; ?></select></div>
-      <div class="field"><label>Phone</label><input type="tel" name="phone" id="ec_phone"/></div>
+      <div class="field"><label>Email *</label><input type="email" name="email" id="ec_email" required autocomplete="email"/></div>
+      <div class="field"><label>Phone *</label><input type="tel" name="phone" id="ec_phone" required autocomplete="tel"/></div>
       <hr style="border:none;border-top:1px solid var(--border);margin:1rem 0">
       <div class="field"><label>New Username (must start with CT-)</label><input type="text" name="username" id="ec_username" autocomplete="off" placeholder="Leave blank to keep current"/></div>
       <div class="field"><label>New Password</label><input type="password" name="password" id="ec_pw" autocomplete="new-password" placeholder="Leave blank to keep current"/></div>
@@ -132,11 +157,13 @@ render_admin_header('collectors',$unread,'Collectors — DisBasura Admin');
   </div>
 </div>
 <script>
+const collectorEmails = <?= json_encode(array_column($collectors, 'email', 'id'), JSON_HEX_TAG|JSON_HEX_APOS|JSON_HEX_AMP|JSON_HEX_QUOT) ?>;
 function openEditCol(id,name,sitio,phone,username){
   document.getElementById('ec_id').value=id;
   document.getElementById('ec_name').value=name;
   document.getElementById('ec_sitio').value=sitio;
   document.getElementById('ec_phone').value=phone;
+  document.getElementById('ec_email').value=collectorEmails[id]||'';
   document.getElementById('ec_username').value='';
   document.getElementById('ec_pw').value='';
   document.getElementById('editColModal').style.display='flex';

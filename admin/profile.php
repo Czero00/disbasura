@@ -1,10 +1,12 @@
 <?php
 require_once __DIR__ . '/../middleware/admin_auth.php';
 require_once __DIR__ . '/../includes/helpers.php';
+require_once __DIR__ . '/../includes/contact_validation.php';
 require_once __DIR__ . '/../includes/base_admin.php';
 
 $db  = get_db();
 $uid = $_SESSION['admin_id'];
+try { $db->exec("ALTER TABLE administrators ADD COLUMN IF NOT EXISTS phone VARCHAR(50) NULL"); } catch(Exception $e){}
 
 // Ensure profile_photo column exists
 try { $db->exec("ALTER TABLE administrators ADD COLUMN IF NOT EXISTS profile_photo VARCHAR(500) DEFAULT NULL"); } catch(Exception $e){}
@@ -19,18 +21,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $full_name = trim($_POST['full_name'] ?? '');
         $username  = trim($_POST['username'] ?? '');
         $email     = trim($_POST['email'] ?? '');
+        $email = normalize_contact_email($email) ?? '';
+        $phone = normalize_ph_mobile($_POST['phone'] ?? '') ?? '';
 
-        if (!$full_name || !$username || !$email) {
-            $error = 'Name, username and email are required.';
+        if (!$full_name || !$username || !$email || !$phone) {
+            $error = 'Enter a name, username, valid email and valid Philippine mobile number.';
         } else {
-            // Check username / email uniqueness (exclude self)
-            $dup = $db->prepare("SELECT id FROM administrators WHERE (username=? OR email=?) AND id!=?");
-            $dup->execute([$username, $email, $uid]);
-            if ($dup->fetch()) {
-                $error = 'That username or email is already taken.';
+            $dup = $db->prepare("SELECT id FROM administrators WHERE username=? AND id!=?");
+            $dup->execute([$username, $uid]);
+            if ($dup->fetch() || contact_email_exists($db, $email, 'administrators', (int)$uid) || contact_phone_exists($db, $phone, 'administrators', (int)$uid)) {
+                $error = 'That username, email or phone number is already used by another account.';
             } else {
-                $db->prepare("UPDATE administrators SET full_name=?, username=?, email=? WHERE id=?")
-                   ->execute([$full_name, $username, $email, $uid]);
+                $db->prepare("UPDATE administrators SET full_name=?, username=?, email=?, phone=? WHERE id=?")
+                   ->execute([$full_name, $username, $email, $phone, $uid]);
                 $_SESSION['admin_name'] = $full_name;
                 $_SESSION['admin_user'] = $username;
                 $success = 'Profile updated successfully.';
@@ -158,6 +161,10 @@ render_admin_header('', $unread, 'My Profile — DisBasura Admin');
       <div class="field">
         <label>Email</label>
         <input type="email" name="email" value="<?= e($user['email']) ?>" required/>
+      </div>
+      <div class="field">
+        <label>Mobile number</label>
+        <input type="tel" name="phone" value="<?= e($user['phone'] ?? '') ?>" placeholder="09XXXXXXXXX or +639XXXXXXXXX" required autocomplete="tel"/>
       </div>
       <button type="submit" class="btn-save" style="width:auto;padding:.65rem 1.5rem">Save Changes</button>
     </form>

@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/../middleware/resident_auth.php';
 require_once __DIR__ . '/../includes/helpers.php';
+require_once __DIR__ . '/../includes/contact_validation.php';
 
 $db  = get_db();
 $uid = $_SESSION['user_id'];
@@ -18,16 +19,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (isset($_POST['save_info'])) {
         $full_name = trim($_POST['full_name'] ?? '');
         $username  = trim($_POST['username'] ?? '');
-        if (!$full_name || !$username) {
-            $error = 'Name and username are required.';
+        $email = normalize_contact_email($_POST['email'] ?? '');
+        $phone = normalize_ph_mobile($_POST['phone'] ?? '');
+        if (!$full_name || !$username || !$email || !$phone) {
+            $error = 'Enter your name, username, valid email and Philippine mobile number.';
         } else {
             $dup = $db->prepare("SELECT id FROM users WHERE username=? AND id!=?");
             $dup->execute([$username, $uid]);
-            if ($dup->fetch()) {
-                $error = 'That username is already taken.';
+            if ($dup->fetch() || contact_email_exists($db, $email, 'users', (int)$uid) || contact_phone_exists($db, $phone, 'users', (int)$uid)) {
+                $error = 'That username, email or phone number is already used by another account.';
             } else {
-                $db->prepare("UPDATE users SET full_name=?, username=? WHERE id=?")
-                   ->execute([$full_name, $username, $uid]);
+                $db->prepare("UPDATE users SET full_name=?, username=?, email=?, phone=? WHERE id=?")
+                   ->execute([$full_name, $username, $email, $phone, $uid]);
                 $_SESSION['full_name'] = $full_name;
                 $_SESSION['username']  = $username;
                 $success = 'Profile updated.';
@@ -231,6 +234,8 @@ $dark    = $prefs['dark_mode'] ? 'dark' : '';
           <input type="hidden" name="save_info" value="1">
           <div class="field"><label>Full Name</label><input type="text" name="full_name" value="<?= e($user['full_name']) ?>" required/></div>
           <div class="field"><label>Username</label><input type="text" name="username" value="<?= e($user['username']) ?>" required autocomplete="off"/></div>
+          <div class="field"><label>Email</label><input type="email" name="email" value="<?= e($user['email']) ?>" required autocomplete="email"/></div>
+          <div class="field"><label>Mobile number</label><input type="tel" name="phone" value="<?= e($user['phone'] ?? '') ?>" placeholder="09XXXXXXXXX or +639XXXXXXXXX" required autocomplete="tel"/></div>
           <button type="submit" class="btn-save">Save Changes</button>
         </form>
       </div>

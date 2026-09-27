@@ -1,12 +1,14 @@
 <?php
 require_once __DIR__ . '/../config/session.php';
 require_once __DIR__ . '/../config/db.php';
+require_once __DIR__ . '/../includes/contact_validation.php';
 
 if (isset($_SESSION['admin_id']) && $_SESSION['admin_role'] === 'admin') {
     header('Location: /disbasura/admin/dashboard.php'); exit;
 }
 
 $db = get_db();
+try { $db->exec("ALTER TABLE administrators ADD COLUMN IF NOT EXISTS phone VARCHAR(50) NULL"); } catch(Exception $e){}
 $no_admin = !$db->query("SELECT id FROM administrators LIMIT 1")->fetch();
 $error = '';
 
@@ -17,19 +19,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $no_admin = !$db->query("SELECT id FROM administrators LIMIT 1")->fetch();
         $fn=trim($_POST['full_name']);
         $un=trim($_POST['username']); $em=trim($_POST['email']); $pw=$_POST['password'];
+        $em = normalize_contact_email($em) ?? '';
+        $phone = normalize_ph_mobile($_POST['phone'] ?? '') ?? '';
         if (preg_match('/^AD-/i', $un)) $un='AD-'.substr($un, 3);
         if ($lock !== 1) {
             $error = 'Admin setup is busy. Please try again.';
         } elseif (!preg_match('/^AD-[a-zA-Z0-9_]+$/', $un)) {
             $error = 'Admin username must start with AD- (example: AD-rey).';
+        } elseif (!$em) {
+            $error = 'Enter a valid email address from a domain that can receive email.';
+        } elseif (!$phone) {
+            $error = 'Enter a valid Philippine mobile number (09XXXXXXXXX or +639XXXXXXXXX).';
         } elseif ($fn && $un && $em && $pw) {
-            if ($no_admin) {
-                $db->prepare("INSERT INTO administrators (full_name,username,email,password) VALUES (?,?,?,?)")
-                   ->execute([$fn,$un,$em,password_hash($pw,PASSWORD_BCRYPT)]);
+            if (!$no_admin) {
+                $error = 'The first admin account has already been created. Please sign in.';
+            } elseif (contact_email_exists($db, $em) || contact_phone_exists($db, $phone)) {
+                $error = 'That email or phone number is already used by another account.';
+            } else {
+                $db->prepare("INSERT INTO administrators (full_name,username,email,phone,password) VALUES (?,?,?,?,?)")
+                   ->execute([$fn,$un,$em,$phone,password_hash($pw,PASSWORD_BCRYPT)]);
                 $db->query("SELECT RELEASE_LOCK('disbasura_first_admin_setup')");
                 header('Location: /disbasura/admin/login.php'); exit;
             }
-            $error = 'The first admin account has already been created. Please sign in.';
         } else {
             $error = 'All fields required.';
         }
@@ -149,6 +160,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             </span>
             <input type="email" name="email" placeholder="Email address" required/>
           </div>
+          <div class="field"><input type="tel" name="phone" placeholder="Mobile number (09XXXXXXXXX)" required autocomplete="tel"/></div>
           <div class="field">
             <span class="field-icon">
               <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/><circle cx="12" cy="16" r="1.5" fill="currentColor"/></svg>

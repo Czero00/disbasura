@@ -2,6 +2,7 @@
 require_once __DIR__ . '/config/session.php';
 require_once __DIR__ . '/config/db.php';
 require_once __DIR__ . '/includes/helpers.php';
+require_once __DIR__ . '/includes/contact_validation.php';
 
 $db = get_db();
 $registrationEnabled = (bool)$db->query('SELECT id FROM administrators LIMIT 1')->fetchColumn();
@@ -30,12 +31,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if (!$registrationEnabled) {
         $error = 'Resident registration is disabled until the administrator completes first-time setup.';
-    } elseif (!$full_name || !$username || !$email || !$password || !$barangayId || !$sitio) {
+    } elseif (!$full_name || !$username || !$email || !$password || !$barangayId || !$sitio || !$phone) {
         $error = 'Please fill in all required fields.';
     } elseif (!in_array($barangayId, $validBarangayIds, true)) {
         $error = 'Please choose a valid Cebu City barangay.';
     } elseif (!in_array($sitio, $allowedSitioNames, true)) {
         $error = 'Please choose a sitio in the selected barangay.';
+    } elseif (!($email = normalize_contact_email($email))) {
+        $error = 'Enter a valid email address from a domain that can receive email.';
+    } elseif (!($phone = normalize_ph_mobile($phone))) {
+        $error = 'Enter a valid Philippine mobile number, such as 09XXXXXXXXX or +639XXXXXXXXX.';
     } elseif (strlen($password) < 6) {
         $error = 'Password must be at least 6 characters.';
     } elseif (!preg_match('/^RT-[a-zA-Z0-9_]+$/', $username)) {
@@ -46,12 +51,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $db = get_db();
         $usernameCheck = $db->prepare('SELECT id FROM users WHERE username = ? LIMIT 1');
         $usernameCheck->execute([$username]);
-        $emailCheck = $db->prepare('SELECT id FROM users WHERE email = ? LIMIT 1');
-        $emailCheck->execute([$email]);
         if ($usernameCheck->fetch()) {
             $error = 'Username already taken.';
-        } elseif ($emailCheck->fetch()) {
-            $error = 'Email already registered.';
+        } elseif (contact_email_exists($db, $email)) {
+            $error = 'That email address is already used by another account.';
+        } elseif (contact_phone_exists($db, $phone)) {
+            $error = 'That phone number is already used by another account.';
         } else {
             $db->prepare("INSERT INTO users (full_name,username,email,password,role,sitio,phone) VALUES (?,?,?,?,?,?,?)")
                ->execute([$full_name,$username,$email,password_hash($password,PASSWORD_BCRYPT),'resident',$sitio,$phone]);
@@ -125,7 +130,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       <div class="field"><label>Email *</label><input type="email" name="email" placeholder="maria@example.com" value="<?= htmlspecialchars($_POST['email']??'') ?>" required autocomplete="email"/></div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem">
         <div class="field"><label>Password *</label><div class="password-field"><input id="signupPassword" type="password" name="password" placeholder="At least 6 characters" required autocomplete="new-password"/><button class="show-password" type="button" aria-label="Show password" aria-pressed="false" data-show-signup-password><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg></button></div></div>
-        <div class="field"><label>Phone</label><input type="tel" name="phone" value="<?= htmlspecialchars($_POST['phone']??'') ?>" placeholder="09XX XXX XXXX"/></div>
+        <div class="field"><label>Phone *</label><input type="tel" name="phone" value="<?= htmlspecialchars($_POST['phone']??'') ?>" placeholder="09XXXXXXXXX or +639XXXXXXXXX" required autocomplete="tel"/></div>
       </div>
       <div class="field"><label for="barangaySelect">Barangay *</label>
         <select name="barangay_id" id="barangaySelect" required>

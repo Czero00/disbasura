@@ -1,9 +1,11 @@
 <?php
 require_once __DIR__ . '/../middleware/collector_auth.php';
 require_once __DIR__ . '/../includes/helpers.php';
+require_once __DIR__ . '/../includes/contact_validation.php';
 
 $db  = get_db();
 $cid = $_SESSION['collector_id'];
+try { $db->exec("ALTER TABLE collectors ADD COLUMN IF NOT EXISTS email VARCHAR(255) NULL"); } catch(Exception $e){}
 
 // Ensure profile_photo column on collectors
 try { $db->exec("ALTER TABLE collectors ADD COLUMN IF NOT EXISTS profile_photo VARCHAR(500) DEFAULT NULL"); } catch(Exception $e){}
@@ -17,16 +19,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (isset($_POST['save_info'])) {
         $full_name = trim($_POST['full_name'] ?? '');
         $username  = trim($_POST['username'] ?? '');
-        if (!$full_name || !$username) {
-            $error = 'Name and username are required.';
+        $email = normalize_contact_email($_POST['email'] ?? '');
+        $phone = normalize_ph_mobile($_POST['phone'] ?? '');
+        if (!$full_name || !$username || !$email || !$phone) {
+            $error = 'Enter your name, username, valid email and Philippine mobile number.';
         } else {
             $dup = $db->prepare("SELECT id FROM collectors WHERE username=? AND id!=?");
             $dup->execute([$username, $cid]);
-            if ($dup->fetch()) {
-                $error = 'Username already taken.';
+            if ($dup->fetch() || contact_email_exists($db, $email, 'collectors', (int)$cid) || contact_phone_exists($db, $phone, 'collectors', (int)$cid)) {
+                $error = 'That username, email or phone number is already used by another account.';
             } else {
-                $db->prepare("UPDATE collectors SET full_name=?, username=? WHERE id=?")
-                   ->execute([$full_name, $username, $cid]);
+                $db->prepare("UPDATE collectors SET full_name=?, username=?, email=?, phone=? WHERE id=?")
+                   ->execute([$full_name, $username, $email, $phone, $cid]);
                 $_SESSION['collector_name'] = $full_name;
                 $success = 'Profile updated.';
                 $linked = $db->prepare("SELECT id FROM users WHERE username=?"); $linked->execute([$username]); $lu = $linked->fetch();
@@ -190,6 +194,14 @@ $photo   = !empty($collector['profile_photo']) ? '/disbasura/uploads/' . $collec
         <div style="margin-bottom:1rem">
           <label style="display:block;font-size:.8rem;font-weight:600;color:var(--text-mid);margin-bottom:.35rem">Username</label>
           <input type="text" name="username" value="<?= e($collector['username'] ?? '') ?>" required autocomplete="off" style="width:100%;padding:.7rem 1rem;border:1.5px solid var(--border-light);border-radius:9px;font-family:inherit;font-size:.9rem;color:var(--text-dark);background:#fff;outline:none;transition:border-color .18s"/>
+        </div>
+        <div style="margin-bottom:.85rem">
+          <label style="display:block;font-size:.8rem;font-weight:600;color:var(--text-mid);margin-bottom:.35rem">Email</label>
+          <input type="email" name="email" value="<?= e($collector['email'] ?? '') ?>" required autocomplete="email" style="width:100%;padding:.7rem 1rem;border:1.5px solid var(--border-light);border-radius:9px;font-family:inherit;font-size:.9rem;color:var(--text-dark);background:#fff;outline:none;transition:border-color .18s"/>
+        </div>
+        <div style="margin-bottom:1rem">
+          <label style="display:block;font-size:.8rem;font-weight:600;color:var(--text-mid);margin-bottom:.35rem">Mobile number</label>
+          <input type="tel" name="phone" value="<?= e($collector['phone'] ?? '') ?>" placeholder="09XXXXXXXXX or +639XXXXXXXXX" required autocomplete="tel" style="width:100%;padding:.7rem 1rem;border:1.5px solid var(--border-light);border-radius:9px;font-family:inherit;font-size:.9rem;color:var(--text-dark);background:#fff;outline:none;transition:border-color .18s"/>
         </div>
         <button type="submit" class="btn-complete" style="border-radius:8px;padding:.65rem 1.25rem">Save Changes</button>
       </form>

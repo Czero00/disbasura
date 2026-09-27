@@ -1,9 +1,12 @@
 <?php
 require_once __DIR__ . '/../middleware/admin_auth.php';
 require_once __DIR__ . '/../includes/helpers.php';
+require_once __DIR__ . '/../includes/payment_helpers.php';
 require_once __DIR__ . '/../includes/base_admin.php';
 require_once __DIR__ . '/../includes/smart_dispatch.php';
 $db = get_db();
+ensure_pickup_payment_tables($db);
+$pickupPaymentSettings = get_pickup_payment_settings($db);
 // Auto-migrate: ensure optional columns exist
 foreach ([
     "ALTER TABLE requests ADD COLUMN IF NOT EXISTS proof_photo VARCHAR(500) DEFAULT NULL",
@@ -36,6 +39,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $col_id = (int)$_POST['collector_id'];
         if ($col_id) {
             $req = $db->query("SELECT * FROM requests WHERE id=$rid")->fetch();
+            $payment = get_latest_pickup_payment($db, $rid);
+            if ($req && is_pickup_payment_required($pickupPaymentSettings) && (!$payment || $payment['status'] !== 'paid')) {
+                $_SESSION['request_error'] = 'Verify the required special pickup payment before assigning a collector.';
+                header('Location: /disbasura/admin/requests.php'); exit;
+            }
             $col = $db->query("SELECT * FROM collectors WHERE id=$col_id")->fetch();
 
             // Was this the AI Smart Dispatch module's top pick, or did the admin override it?
@@ -74,6 +82,7 @@ $requests = $stmt->fetchAll();
 $unread = get_unread_admin_count($_SESSION['admin_id']);
 render_admin_header('requests',$unread,'Requests — DisBasura Admin');
 ?>
+<?php if (!empty($_SESSION['request_error'])): ?><div class="panel" style="margin-bottom:1rem;color:#a33"><?= e((string)$_SESSION['request_error']); unset($_SESSION['request_error']); ?></div><?php endif; ?>
 <div class="page-header"><h1>Pickup Requests</h1><p>Review and manage resident pickup requests</p></div>
 <div class="filter-tabs">
   <?php foreach([''=> 'All','pending'=>'Pending','approved'=>'Approved','rejected'=>'Rejected','completed'=>'Completed','assigned'=>'Assigned'] as $v=>$lbl): ?>
@@ -86,7 +95,7 @@ render_admin_header('requests',$unread,'Requests — DisBasura Admin');
     <div>
       <strong style="font-size:.95rem"><?= htmlspecialchars($r['full_name']) ?></strong>
       <?php if($r['submitted_by_name']): ?><span style="font-size:.78rem;color:var(--text-light)"> (via <?= htmlspecialchars($r['submitted_by_name']) ?>)</span><?php endif; ?>
-      <div style="font-size:.82rem;color:var(--text-mid);margin-top:.2rem">📍 <?= htmlspecialchars($r['sitio']) ?> · <?= htmlspecialchars($r['waste_type']) ?></div>
+      <div style="font-size:.82rem;color:var(--text-mid);margin-top:.2rem">📍  <?= htmlspecialchars($r['sitio']) ?> · <?= htmlspecialchars($r['waste_type']) ?></div>
       <div style="font-size:.78rem;color:var(--text-light)">📅 Preferred: <?= fmt_date($r['preferred_date']) ?></div>
       <?php if($r['note']): ?><div style="font-size:.78rem;color:var(--text-mid);margin-top:.2rem">💬 <?= htmlspecialchars($r['note']) ?></div><?php endif; ?>
       <?php if($r['location']): ?><div style="font-size:.78rem;color:var(--text-mid)">🏠 <?= htmlspecialchars($r['location']) ?></div><?php endif; ?>

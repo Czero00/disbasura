@@ -7,6 +7,8 @@ function render_admin_header(string $active = '', int $unread = 0, string $title
             '<rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>'],
         'requests'      => ['Requests',       '/disbasura/admin/requests.php',
             '<path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/>'],
+        'payments'      => ['Payments',       '/disbasura/admin/payments.php',
+            '<rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/>'],
         'collectors'    => ['Collectors',     '/disbasura/admin/collectors.php',
             '<rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/>'],
         'performance'   => ['Performance',    '/disbasura/admin/performance.php',
@@ -42,6 +44,7 @@ function render_admin_header(string $active = '', int $unread = 0, string $title
         $pageCounts['schedules']     = (int)$db->query("SELECT COUNT(*) FROM schedules WHERE status='unverified'")->fetchColumn();
         $pageCounts['residents']     = (int)$db->query("SELECT COUNT(*) FROM users WHERE role='resident' AND DATE(created_at)=CURDATE()")->fetchColumn();
     } catch (Exception $e) {}
+    try { $pageCounts['payments'] = (int)$db->query("SELECT COUNT(*) FROM pickup_payments WHERE status='pending'")->fetchColumn(); } catch (Exception $e) {}
 
     $full_name = e($_SESSION['admin_name'] ?? 'Admin');
     $initial   = strtoupper(substr($full_name, 0, 1));
