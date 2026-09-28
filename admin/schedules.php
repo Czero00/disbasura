@@ -53,6 +53,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $db->commit();
                         $dayNames = implode(', ', $weekdays);
                         notify_all_sitio($db, $sitio, "Collection schedule for {$sitio}: {$dayNames} during " . $month->format('F Y') . '. Please prepare your trash on collection days.');
+                        if ($collectorId) notify_collector($db, $collectorId, "You have been assigned {$count} collection schedule(s) for {$sitio} during " . $month->format('F Y') . ".", 'Collection schedules assigned');
                         $_SESSION['flash'] = "Created {$count} collection dates for {$sitio} in " . $month->format('F Y') . '.';
                     }
                 } catch (Throwable $e) {
@@ -69,12 +70,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $db->prepare('INSERT INTO schedules (sitio,scheduled_at,waste_type,collector_id) VALUES (?,?,?,?)')
                    ->execute([$sitio, $date->format('Y-m-d H:i:s'), $wasteType, $collectorId]);
                 notify_all_sitio($db, $sitio, 'A new collection is scheduled for ' . $date->format('M d, Y \\a\\t h:i A') . " ({$wasteType}). Please prepare your trash!");
+                if ($collectorId) notify_collector($db, $collectorId, "You have been assigned to collect {$wasteType} in {$sitio} on " . $date->format('M d, Y \\a\\t h:i A') . '.', 'New collection schedule assigned');
                 $_SESSION['flash'] = 'Collection schedule added.';
             }
         }
     } elseif (isset($_POST['edit_schedule'])) {
+        $scheduleId = (int)($_POST['id'] ?? 0);
+        $newCollectorId = (int)($_POST['collector_id'] ?? 0) ?: null;
+        $oldStmt = $db->prepare('SELECT collector_id FROM schedules WHERE id=?');
+        $oldStmt->execute([$scheduleId]);
+        $oldCollectorId = (int)($oldStmt->fetchColumn() ?: 0);
         $db->prepare("UPDATE schedules SET sitio=?,scheduled_at=?,waste_type=?,collector_id=? WHERE id=?")
-           ->execute([$_POST['sitio'],$_POST['scheduled_at'],$_POST['waste_type'],$_POST['collector_id']?:null,$_POST['id']]);
+           ->execute([$_POST['sitio'],$_POST['scheduled_at'],$_POST['waste_type'],$newCollectorId,$scheduleId]);
+        if ($newCollectorId && $newCollectorId !== $oldCollectorId) {
+            $scheduleDate = new DateTime((string)$_POST['scheduled_at']);
+            notify_collector($db, $newCollectorId, "You have been assigned to collect " . trim((string)$_POST['waste_type']) . " in " . trim((string)$_POST['sitio']) . " on " . $scheduleDate->format('M d, Y \\a\\t h:i A') . '.', 'Collection schedule assigned');
+        }
     } elseif (isset($_POST['delete_schedule'])) {
         $db->prepare("DELETE FROM schedules WHERE id=?")->execute([$_POST['id']]);
     }

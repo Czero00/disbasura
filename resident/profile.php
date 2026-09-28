@@ -235,7 +235,7 @@ $dark    = $prefs['dark_mode'] ? 'dark' : '';
           <div class="field"><label>Full Name</label><input type="text" name="full_name" value="<?= e($user['full_name']) ?>" required/></div>
           <div class="field"><label>Username</label><input type="text" name="username" value="<?= e($user['username']) ?>" required autocomplete="off"/></div>
           <div class="field"><label>Email</label><input type="email" name="email" value="<?= e($user['email']) ?>" required autocomplete="email"/></div>
-          <div class="field"><label>Mobile number</label><input type="tel" name="phone" value="<?= e($user['phone'] ?? '') ?>" placeholder="09XXXXXXXXX or +639XXXXXXXXX" required autocomplete="tel"/></div>
+<div class="field"><label>Mobile number</label><input type="tel" name="phone" value="<?= e($user['phone'] ?? '') ?>" placeholder="09XXXXXXXXX or +639XXXXXXXXX" inputmode="tel" oninput="this.value=this.value.replace(/[^0-9+() .-]/g,'')" required autocomplete="tel"/></div>
           <button type="submit" class="btn-save">Save Changes</button>
         </form>
       </div>

@@ -201,7 +201,7 @@ $photo   = !empty($collector['profile_photo']) ? '/disbasura/uploads/' . $collec
         </div>
         <div style="margin-bottom:1rem">
           <label style="display:block;font-size:.8rem;font-weight:600;color:var(--text-mid);margin-bottom:.35rem">Mobile number</label>
-          <input type="tel" name="phone" value="<?= e($collector['phone'] ?? '') ?>" placeholder="09XXXXXXXXX or +639XXXXXXXXX" required autocomplete="tel" style="width:100%;padding:.7rem 1rem;border:1.5px solid var(--border-light);border-radius:9px;font-family:inherit;font-size:.9rem;color:var(--text-dark);background:#fff;outline:none;transition:border-color .18s"/>
+<input type="tel" name="phone" value="<?= e($collector['phone'] ?? '') ?>" placeholder="09XXXXXXXXX or +639XXXXXXXXX" inputmode="tel" oninput="this.value=this.value.replace(/[^0-9+() .-]/g,'')" required autocomplete="tel" style="width:100%;padding:.7rem 1rem;border:1.5px solid var(--border-light);border-radius:9px;font-family:inherit;font-size:.9rem;color:var(--text-dark);background:#fff;outline:none;transition:border-color .18s"/>
         </div>
         <button type="submit" class="btn-complete" style="border-radius:8px;padding:.65rem 1.25rem">Save Changes</button>
       </form>

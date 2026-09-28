@@ -41,7 +41,8 @@ $sitio = $_SESSION['sitio'] ?? '';
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-const map = L.map('map').setView([10.7, 122.9], 13);
+// Start at Cebu City so sitio leaders see the local area immediately.
+const map = L.map('map').setView([10.3157, 123.8854], 12);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {attribution: '© OpenStreetMap contributors'}).addTo(map);
 const markers = {};
 const truckIcon = L.divIcon({className:'', html:'<div style="background:#2d8653;color:#fff;border-radius:50%;width:36px;height:36px;display:flex;align-items:center;justify-content:center;font-size:1.2rem;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.25)">🚛</div>', iconSize:[36,36], iconAnchor:[18,18]});
@@ -74,8 +75,6 @@ function refreshTrucks(){
         if (markers[t.id]) { markers[t.id].setLatLng(latlng).bindPopup(popup); }
         else { markers[t.id] = L.marker(latlng, {icon: truckIcon}).addTo(map).bindPopup(popup); }
       });
-      const pts = Object.values(markers).map(m => m.getLatLng());
-      if (pts.length > 0) map.fitBounds(L.latLngBounds(pts), {padding:[40,40]});
     });
 }
 refreshTrucks();

@@ -130,7 +130,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       <div class="field"><label>Email *</label><input type="email" name="email" placeholder="maria@example.com" value="<?= htmlspecialchars($_POST['email']??'') ?>" required autocomplete="email"/></div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem">
         <div class="field"><label>Password *</label><div class="password-field"><input id="signupPassword" type="password" name="password" placeholder="At least 6 characters" required autocomplete="new-password"/><button class="show-password" type="button" aria-label="Show password" aria-pressed="false" data-show-signup-password><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg></button></div></div>
-        <div class="field"><label>Phone *</label><input type="tel" name="phone" value="<?= htmlspecialchars($_POST['phone'] ?? '+63', ENT_QUOTES, 'UTF-8') ?>" placeholder="+63 9XXXXXXXXX" inputmode="tel" maxlength="13" required autocomplete="tel"/><small>Enter your 10-digit mobile number after +63.</small></div>
+<div class="field"><label>Phone *</label><input type="tel" name="phone" value="<?= htmlspecialchars($_POST['phone'] ?? '+63', ENT_QUOTES, 'UTF-8') ?>" placeholder="+63 9XXXXXXXXX" inputmode="tel" oninput="this.value=this.value.replace(/[^0-9+() .-]/g,'')" maxlength="13" required autocomplete="tel"/><small>Enter your 10-digit mobile number after +63.</small></div>
       </div>
       <div class="field"><label for="barangaySelect">Barangay *</label>
         <select name="barangay_id" id="barangaySelect" required>

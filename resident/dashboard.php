@@ -36,8 +36,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
             $db->prepare("INSERT INTO pickup_payments (request_id,resident_id,amount,method,reference_number,proof_photo,status) VALUES (?,?,?,?,?,?,'pending')")
                 ->execute([$rid, $uid, (float)$paymentSettings['fee'], $method, $reference ?: null, $proof]);
-            notify_all_admins($db, "Resident submitted a special pickup payment for request #{$rid}; please verify it.");
-            notify_user($db, $uid, 'Your payment submission is waiting for admin verification.');
+            notify_sitio_leaders($db, (string)$req['sitio'], "Resident submitted payment for special pickup request #{$rid}; please verify it.", 'Payment awaiting review');
+            notify_user($db, $uid, 'Your payment submission is waiting for your Sitio Leader to verify.');
         }
         header('Location: /disbasura/resident/dashboard.php'); exit;
     }
@@ -102,7 +102,7 @@ foreach ([
     "ALTER TABLE schedules ADD COLUMN IF NOT EXISTS resident_proof_photo VARCHAR(500) DEFAULT NULL",
 ] as $sql) { try { $db->exec($sql); } catch(Exception $e){} }
 // Fix ENUM if 'assigned' is missing
-try { $db->exec("ALTER TABLE requests MODIFY COLUMN status ENUM('pending','approved','rejected','completed','assigned') NOT NULL DEFAULT 'pending'"); } catch(Exception $e){}
+try { $db->exec("ALTER TABLE requests MODIFY COLUMN status ENUM('pending','leader_approved','approved','rejected','completed','assigned') NOT NULL DEFAULT 'pending'"); } catch(Exception $e){}
 try { $db->exec("UPDATE requests SET status='assigned' WHERE collector_id IS NOT NULL AND (status='' OR status IS NULL)"); } catch(Exception $e){}
 
 $my_requests = $db->prepare("SELECT r.*,c.full_name as collector_name FROM requests r LEFT JOIN collectors c ON r.collector_id=c.id WHERE r.resident_id=? ORDER BY r.created_at DESC");

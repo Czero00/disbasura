@@ -16,7 +16,7 @@ foreach ([
 
 // Fix ENUM — add 'assigned' status if missing
 try {
-    $db->exec("ALTER TABLE requests MODIFY COLUMN status ENUM('pending','approved','rejected','completed','assigned') NOT NULL DEFAULT 'pending'");
+    $db->exec("ALTER TABLE requests MODIFY COLUMN status ENUM('pending','leader_approved','approved','rejected','completed','assigned') NOT NULL DEFAULT 'pending'");
 } catch(Exception $e){}
 
 // Fix existing requests that have collector_id set but status is empty/null — set them to 'assigned'
@@ -27,18 +27,42 @@ try {
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $rid = (int)($_POST['id'] ?? 0);
     if (isset($_POST['approve'])) {
-        $req = $db->prepare("SELECT * FROM requests WHERE id=?")->execute([$rid]);
-        $req = $db->query("SELECT * FROM requests WHERE id=$rid")->fetch();
-        $db->prepare("UPDATE requests SET status='approved' WHERE id=?")->execute([$rid]);
-        log_activity($_SESSION['admin_id'],'Approved Request','Request #'.$rid.' - '.$req['sitio']); notify_user($db,$req['resident_id'],"✅ Your pickup request has been approved by admin!");
+        $stmt = $db->prepare("SELECT * FROM requests WHERE id=?");
+        $stmt->execute([$rid]);
+        $req = $stmt->fetch();
+        if (!$req) {
+            $_SESSION['request_error'] = 'Pickup request not found.';
+        } elseif ($req['status'] !== 'leader_approved') {
+            $_SESSION['request_error'] = 'This request must first be approved by its Sitio Leader.';
+        } elseif (!is_pickup_payment_required($pickupPaymentSettings)) {
+            $_SESSION['payment_setup_notice'] = 'To approve this pickup request, enable special pickup payment, set a fee, and choose at least one payment method.';
+            header('Location: /disbasura/admin/payments.php');
+            exit;
+        } else {
+            $approveUpdate = $db->prepare("UPDATE requests SET status='approved' WHERE id=? AND status='leader_approved'");
+            $approveUpdate->execute([$rid]);
+            if ($approveUpdate->rowCount() > 0) {
+                log_activity($_SESSION['admin_id'],'Approved Request','Request #'.$rid.' - '.$req['sitio']);
+                notify_user($db,$req['resident_id'],"✅ Your pickup request has been approved by admin!");
+            } else {
+                $_SESSION['request_error'] = 'This request is no longer awaiting Admin review.';
+            }
+        }
     } elseif (isset($_POST['reject'])) {
-        $req = $db->query("SELECT * FROM requests WHERE id=$rid")->fetch();
-        $db->prepare("UPDATE requests SET status='rejected' WHERE id=?")->execute([$rid]);
+        $stmt = $db->prepare("SELECT * FROM requests WHERE id=? AND status='leader_approved'"); $stmt->execute([$rid]); $req = $stmt->fetch();
+        if ($req) $db->prepare("UPDATE requests SET status='rejected' WHERE id=? AND status='leader_approved'")->execute([$rid]);
+        if (!$req) { $_SESSION['request_error'] = 'Only requests forwarded by a Sitio Leader can be rejected here.'; header('Location: /disbasura/admin/requests.php'); exit; }
         log_activity($_SESSION['admin_id'],'Rejected Request','Request #'.$rid.' - '.$req['sitio']); notify_user($db,$req['resident_id'],"❌ Your pickup request was rejected by admin.");
     } elseif (isset($_POST['assign'])) {
         $col_id = (int)$_POST['collector_id'];
         if ($col_id) {
-            $req = $db->query("SELECT * FROM requests WHERE id=$rid")->fetch();
+            $reqStmt = $db->prepare("SELECT * FROM requests WHERE id=? AND status='approved'");
+            $reqStmt->execute([$rid]);
+            $req = $reqStmt->fetch();
+            if (!$req) {
+                $_SESSION['request_error'] = 'Only Admin-approved requests can be assigned to a collector.';
+                header('Location: /disbasura/admin/requests.php'); exit;
+            }
             $payment = get_latest_pickup_payment($db, $rid);
             if ($req && is_pickup_payment_required($pickupPaymentSettings) && (!$payment || $payment['status'] !== 'paid')) {
                 $_SESSION['request_error'] = 'Verify the required special pickup payment before assigning a collector.';
@@ -58,11 +82,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $db->prepare("UPDATE requests SET collector_id=?,ai_suggested_id=?,status='assigned' WHERE id=?")->execute([$col_id,$topPick,$rid]);
             // Notify resident
             notify_user($db,$req['resident_id'],"🚛 A collector (".$col['full_name'].") has been assigned to your pickup request for ".$req['sitio']."!");
-            // Notify collector via notifications table (linked to collector's user account if exists)
-            $col_user = $db->prepare("SELECT id FROM users WHERE username=?");
-            $col_user->execute([$col['username'] ?? '']);
-            $cu = $col_user->fetch();
-            if ($cu) notify_user($db,$cu['id'],"📋 You have been assigned a new pickup request from ".$req['sitio']." — ".($req['waste_type']).".");
+            notify_collector($db, $col_id, "You have been assigned a new pickup request from {$req['sitio']} — {$req['waste_type']}.", 'New pickup request assigned');
             log_activity($_SESSION['admin_id'],'Assigned Collector','Request #'.$rid.' → '.$col['full_name'].' ('.$dispatchNote.')');
         }
     } elseif (isset($_POST['complete'])) {
@@ -75,8 +95,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 $status_filter = $_GET['status'] ?? '';
 $collectors    = $db->query("SELECT * FROM collectors ORDER BY full_name")->fetchAll();
-$q = "SELECT r.*,u.full_name,s.full_name as submitted_by_name,c.full_name as collector_name FROM requests r JOIN users u ON r.resident_id=u.id LEFT JOIN users s ON r.submitted_by=s.id LEFT JOIN collectors c ON r.collector_id=c.id";
-if ($status_filter) { $stmt=$db->prepare($q." WHERE r.status=? ORDER BY r.created_at DESC"); $stmt->execute([$status_filter]); }
+$q = "SELECT r.*,u.full_name,s.full_name as submitted_by_name,c.full_name as collector_name FROM requests r JOIN users u ON r.resident_id=u.id LEFT JOIN users s ON r.submitted_by=s.id LEFT JOIN collectors c ON r.collector_id=c.id WHERE r.status<>'pending'";
+if ($status_filter) { $stmt=$db->prepare($q." AND r.status=? ORDER BY r.created_at DESC"); $stmt->execute([$status_filter]); }
 else { $stmt=$db->query($q." ORDER BY r.created_at DESC"); }
 $requests = $stmt->fetchAll();
 $unread = get_unread_admin_count($_SESSION['admin_id']);
@@ -85,7 +105,7 @@ render_admin_header('requests',$unread,'Requests — DisBasura Admin');
 <?php if (!empty($_SESSION['request_error'])): ?><div class="panel" style="margin-bottom:1rem;color:#a33"><?= e((string)$_SESSION['request_error']); unset($_SESSION['request_error']); ?></div><?php endif; ?>
 <div class="page-header"><h1>Pickup Requests</h1><p>Review and manage resident pickup requests</p></div>
 <div class="filter-tabs">
-  <?php foreach([''=> 'All','pending'=>'Pending','approved'=>'Approved','rejected'=>'Rejected','completed'=>'Completed','assigned'=>'Assigned'] as $v=>$lbl): ?>
+  <?php foreach([''=> 'All','leader_approved'=>'Awaiting Admin','approved'=>'Approved','rejected'=>'Rejected','completed'=>'Completed','assigned'=>'Assigned'] as $v=>$lbl): ?>
   <a href="<?= $v?'?status='.$v:'/disbasura/admin/requests.php' ?>" class="tab <?= $status_filter===$v?'active':'' ?>"><?= $lbl ?></a>
   <?php endforeach; ?>
 </div>
@@ -114,11 +134,12 @@ render_admin_header('requests',$unread,'Requests — DisBasura Admin');
     </div>
   </div>
   <div style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center">
-    <?php if($r['status']==='pending'): ?>
-    <form method="POST" style="display:inline"><input type="hidden" name="id" value="<?= $r['id'] ?>"><button type="submit" name="approve" class="btn-approve" style="font-size:.8rem;padding:.4rem .9rem">✅ Approve</button></form>
+    <?php if($r['status']==='leader_approved'): ?>
+    <form method="POST" style="display:inline"><input type="hidden" name="id" value="<?= $r['id'] ?>"><button type="submit" name="approve" class="btn-approve" style="font-size:.8rem;padding:.4rem .9rem;<?= is_pickup_payment_required($pickupPaymentSettings) ? '' : 'background:#b7791f' ?>" title="<?= is_pickup_payment_required($pickupPaymentSettings) ? 'Approve pickup request' : 'Payment setup is required; click to open Payments' ?>">✅ Approve</button></form>
+    <?php if(!is_pickup_payment_required($pickupPaymentSettings)): ?><span style="font-size:.75rem;color:#946200">Payment setup is required; clicking Approve will open Payments.</span><?php endif; ?>
     <form method="POST" style="display:inline"><input type="hidden" name="id" value="<?= $r['id'] ?>"><button type="submit" name="reject" class="btn-reject" style="font-size:.8rem;padding:.4rem .9rem">❌ Reject</button></form>
     <?php endif; ?>
-    <?php if(in_array($r['status'],['approved','pending'])):
+    <?php if($r['status']==='approved'):
         $recs = get_smart_dispatch_recommendations($db, $r);
         $topRec = $recs[0] ?? null;
     ?>

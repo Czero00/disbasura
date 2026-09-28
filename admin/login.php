@@ -233,7 +233,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             </span>
             <input type="email" name="email" placeholder="Admin Gmail address" autocomplete="email" required/>
           </div>
-          <div class="field"><label for="adminSetupPhone">Mobile number *</label><input id="adminSetupPhone" type="tel" name="phone" value="<?= htmlspecialchars($_POST['phone'] ?? '+63', ENT_QUOTES, 'UTF-8') ?>" placeholder="+63 9XXXXXXXXX" inputmode="tel" maxlength="13" required autocomplete="tel"/><small>Enter your 10-digit mobile number after +63.</small></div>
+          <div class="field"><label for="adminSetupPhone">Mobile number *</label><input id="adminSetupPhone" type="tel" name="phone" value="<?= htmlspecialchars($_POST['phone'] ?? '+63', ENT_QUOTES, 'UTF-8') ?>" placeholder="+63 9XXXXXXXXX" inputmode="tel" oninput="this.value=this.value.replace(/[^0-9+() .-]/g,'')" maxlength="13" required autocomplete="tel"/><small>Enter your 10-digit mobile number after +63.</small></div>
           <div class="field">
             <span class="field-icon">
               <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/><circle cx="12" cy="16" r="1.5" fill="currentColor"/></svg>

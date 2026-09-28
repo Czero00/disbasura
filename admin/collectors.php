@@ -132,7 +132,7 @@ render_admin_header('collectors',$unread,'Collectors — DisBasura Admin');
       <div class="field"><label>Full Name</label><input type="text" name="full_name" placeholder="Juan Santos" required/></div>
       <div class="field"><label>Sitio</label><select name="sitio" required><option value="">Select sitio</option><?php foreach($sitios_list as $s): ?><option><?= htmlspecialchars($s) ?></option><?php endforeach; ?></select></div>
       <div class="field"><label>Email *</label><input type="email" name="email" placeholder="collector@example.com" required autocomplete="email"/></div>
-      <div class="field"><label>Phone *</label><input type="tel" name="phone" placeholder="09XXXXXXXXX or +639XXXXXXXXX" required autocomplete="tel"/></div>
+      <div class="field"><label>Phone *</label><input type="tel" name="phone" placeholder="09XXXXXXXXX or +639XXXXXXXXX" inputmode="tel" oninput="this.value=this.value.replace(/[^0-9+() .-]/g,'')" required autocomplete="tel"/></div>
       <hr style="border:none;border-top:1px solid var(--border);margin:1rem 0">
       <div class="field"><label>Username * (must start with CT-)</label><input type="text" name="username" placeholder="CT-juan" autocomplete="username" required/></div>
       <div class="field"><label>Password *</label><input type="password" name="password" autocomplete="new-password" required/></div>
@@ -148,7 +148,7 @@ render_admin_header('collectors',$unread,'Collectors — DisBasura Admin');
       <div class="field"><label>Full Name</label><input type="text" name="full_name" id="ec_name" required/></div>
       <div class="field"><label>Sitio</label><select name="sitio" id="ec_sitio" required><?php foreach($sitios_list as $s): ?><option><?= htmlspecialchars($s) ?></option><?php endforeach; ?></select></div>
       <div class="field"><label>Email *</label><input type="email" name="email" id="ec_email" required autocomplete="email"/></div>
-      <div class="field"><label>Phone *</label><input type="tel" name="phone" id="ec_phone" required autocomplete="tel"/></div>
+      <div class="field"><label>Phone *</label><input type="tel" name="phone" id="ec_phone" inputmode="tel" oninput="this.value=this.value.replace(/[^0-9+() .-]/g,'')" required autocomplete="tel"/></div>
       <hr style="border:none;border-top:1px solid var(--border);margin:1rem 0">
       <div class="field"><label>New Username (must start with CT-)</label><input type="text" name="username" id="ec_username" autocomplete="off" placeholder="Leave blank to keep current"/></div>
       <div class="field"><label>New Password</label><input type="password" name="password" id="ec_pw" autocomplete="new-password" placeholder="Leave blank to keep current"/></div>

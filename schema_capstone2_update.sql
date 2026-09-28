@@ -156,7 +156,7 @@ CREATE TABLE IF NOT EXISTS requests (
     waste_type           VARCHAR(100) NOT NULL,
     preferred_date       DATETIME NOT NULL,
     note                 TEXT,
-    status               ENUM('pending','approved','rejected','completed','assigned') NOT NULL DEFAULT 'pending',
+    status               ENUM('pending','leader_approved','approved','rejected','completed','assigned') NOT NULL DEFAULT 'pending',
     collector_id         INT,
     ai_suggested_id      INT NULL COMMENT 'Which collector the AI Smart Dispatch recommended',
     proof_photo          VARCHAR(500),
@@ -195,6 +195,7 @@ CREATE TABLE IF NOT EXISTS pickup_payments (
     status ENUM('pending','paid','rejected') NOT NULL DEFAULT 'pending',
     admin_note VARCHAR(500) NULL,
     reviewed_by INT NULL,
+    reviewed_by_role ENUM('admin','leader') NULL,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     reviewed_at DATETIME NULL,
     INDEX idx_pickup_payments_request (request_id, id),
@@ -238,6 +239,19 @@ CREATE TABLE IF NOT EXISTS notifications (
 );
 
 -- ────────────────────────────────────────────────────────────
+-- Collector accounts are separate from resident users, so collector alerts
+-- have their own recipient table.
+CREATE TABLE IF NOT EXISTS collector_notifications (
+    id          INT AUTO_INCREMENT PRIMARY KEY,
+    collector_id INT NOT NULL,
+    title       VARCHAR(100) NOT NULL DEFAULT 'Notification',
+    message     TEXT NOT NULL,
+    is_read     TINYINT NOT NULL DEFAULT 0,
+    created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_collector_notifications_unread (collector_id, is_read, created_at),
+    FOREIGN KEY (collector_id) REFERENCES collectors(id) ON DELETE CASCADE
+);
+
 -- Admin accounts are stored separately from resident accounts, so they use a
 -- dedicated notification table instead of notifications.user_id.
 CREATE TABLE IF NOT EXISTS admin_notifications (

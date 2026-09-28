@@ -91,6 +91,28 @@ function notify_user(PDO $db, int $user_id, string $message, string $title = 'No
     insert_user_notification($db, $user_id, $message, $title);
 }
 
+function ensure_collector_notifications_table(PDO $db): void {
+    static $ready = false;
+    if ($ready) return;
+    $db->exec("CREATE TABLE IF NOT EXISTS collector_notifications (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        collector_id INT NOT NULL,
+        title VARCHAR(100) NOT NULL DEFAULT 'Notification',
+        message TEXT NOT NULL,
+        is_read TINYINT NOT NULL DEFAULT 0,
+        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_collector_notifications_unread (collector_id, is_read, created_at),
+        CONSTRAINT fk_collector_notifications_collector FOREIGN KEY (collector_id) REFERENCES collectors(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+    $ready = true;
+}
+
+function notify_collector(PDO $db, int $collector_id, string $message, string $title = 'Notification'): void {
+    ensure_collector_notifications_table($db);
+    $db->prepare('INSERT INTO collector_notifications (collector_id,title,message,created_at) VALUES (?,?,?,?)')
+       ->execute([$collector_id, $title, $message, now_pht()]);
+}
+
 function notify_all_sitio(PDO $db, string $sitio, string $message, string $title = 'Announcement'): void {
     $stmt = $db->prepare("SELECT id FROM users WHERE sitio=? AND role IN ('resident','leader')");
     $stmt->execute([$sitio]);
@@ -150,6 +172,16 @@ function log_activity(int $actor_id, string $action_type, string $details = '', 
         $db->prepare('INSERT INTO activity_log (' . implode(',', $quotedFields) . ') VALUES (' . $placeholders . ')')
            ->execute(array_values($data));
     } catch (Exception $e) {}
+}
+
+function notify_sitio_leaders(PDO $db, string $sitio, string $message, string $title = 'Sitio Alert'): int {
+    $stmt = $db->prepare("SELECT id FROM users WHERE role='leader' AND sitio=?");
+    $stmt->execute([$sitio]);
+    $leaders = $stmt->fetchAll(PDO::FETCH_COLUMN);
+    foreach ($leaders as $leaderId) {
+        insert_user_notification($db, (int)$leaderId, $message, $title);
+    }
+    return count($leaders);
 }
 
 // ── Auto-Flag Missed Collections ─────────────────────────────

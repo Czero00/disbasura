@@ -15,9 +15,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $error = 'Please check the required fields and choose a future pickup date and time.';
     } else {
         $db = get_db();
-        $db->prepare("INSERT INTO requests (resident_id,submitted_by,sitio,location,waste_type,preferred_date,note) VALUES (?,?,?,?,?,?,?)")
-           ->execute([$_SESSION['user_id'],$_SESSION['user_id'],$sitio,$location,$wasteType,$date->format('Y-m-d H:i:s'),$note]);
-        header('Location: /disbasura/resident/dashboard.php'); exit;
+        $leaderCount = $db->prepare("SELECT COUNT(*) FROM users WHERE role='leader' AND sitio=?");
+        $leaderCount->execute([$sitio]);
+        if ((int)$leaderCount->fetchColumn() < 1) {
+            $error = 'There is no Sitio Leader assigned to this sitio yet. Please contact the barangay administrator.';
+        } else {
+            $db->prepare("INSERT INTO requests (resident_id,submitted_by,sitio,location,waste_type,preferred_date,note) VALUES (?,?,?,?,?,?,?)")
+               ->execute([$_SESSION['user_id'],$_SESSION['user_id'],$sitio,$location,$wasteType,$date->format('Y-m-d H:i:s'),$note]);
+            $rid = (int)$db->lastInsertId();
+            notify_sitio_leaders($db, $sitio, "A resident submitted special pickup request #{$rid}. Please review it.", 'Pickup request awaiting review');
+            notify_user($db, (int)$_SESSION['user_id'], 'Your special pickup request was sent to your Sitio Leader for review.');
+            header('Location: /disbasura/resident/dashboard.php'); exit;
+        }
     }
 }
 $selectedSitio = $_POST['sitio'] ?? '';
@@ -62,7 +71,7 @@ $selectedWaste = $_POST['waste_type'] ?? 'Biodegradable';
       <div class="field"><label class="field-label" for="preferred_date">Preferred pickup date &amp; time <span class="required">*</span></label><div class="input-wrap"><span class="field-icon">▣</span><input class="control" id="preferred_date" type="datetime-local" name="preferred_date" value="<?= e($_POST['preferred_date'] ?? '') ?>" required/></div></div>
       <div class="field"><label class="field-label" for="note">Special instructions / notes <span style="color:#98a8bf;font-weight:600">(optional)</span></label><textarea class="notes" id="note" name="note" maxlength="2000" placeholder="e.g. Please call upon arrival. Garbage bags are near the front gate."><?= e($_POST['note'] ?? '') ?></textarea><p class="hint">Add useful details to help the collection team find and handle your items.</p></div>
       <div class="form-actions"><button class="submit-btn" type="submit">Submit Pickup Request &nbsp;→</button><a class="cancel-link" href="/disbasura/resident/dashboard.php">Cancel</a></div>
-      <p class="fine-print">Your request will be sent to the barangay for review.</p>
+      <p class="fine-print">Your Sitio Leader reviews your request first. If approved, it is forwarded to Admin.</p>
     </form>
   </main>
 </div>

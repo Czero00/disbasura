@@ -37,6 +37,7 @@ function ensure_pickup_payment_tables(PDO $db): void {
         CONSTRAINT fk_pickup_payments_request FOREIGN KEY (request_id) REFERENCES requests(id) ON DELETE CASCADE,
         CONSTRAINT fk_pickup_payments_resident FOREIGN KEY (resident_id) REFERENCES users(id) ON DELETE CASCADE
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+    try { $db->exec("ALTER TABLE pickup_payments ADD COLUMN reviewed_by_role ENUM('admin','leader') NULL AFTER reviewed_by"); } catch (Throwable $e) {}
     $ready = true;
 }
 
@@ -56,5 +57,7 @@ function get_latest_pickup_payment(PDO $db, int $request_id): ?array {
 }
 
 function is_pickup_payment_required(array $settings): bool {
-    return !empty($settings['enabled']) && (float)($settings['fee'] ?? 0) > 0;
+    return !empty($settings['enabled'])
+        && (float)($settings['fee'] ?? 0) > 0
+        && (!empty($settings['allow_qrph']) || !empty($settings['allow_cash']));
 }

@@ -23,24 +23,22 @@ foreach ([
     "ALTER TABLE requests ADD COLUMN IF NOT EXISTS resident_proof_photo VARCHAR(500) DEFAULT NULL",
     "ALTER TABLE schedules ADD COLUMN IF NOT EXISTS resident_proof_photo VARCHAR(500) DEFAULT NULL",
 ] as $sql) { try { $db->exec($sql); } catch(Exception $e){} }
-try { $db->exec("ALTER TABLE requests MODIFY COLUMN status ENUM('pending','approved','rejected','completed','assigned') NOT NULL DEFAULT 'pending'"); } catch(Exception $e){}
+try { $db->exec("ALTER TABLE requests MODIFY COLUMN status ENUM('pending','leader_approved','approved','rejected','completed','assigned') NOT NULL DEFAULT 'pending'"); } catch(Exception $e){}
 try { $db->exec("UPDATE requests SET status='assigned' WHERE collector_id IS NOT NULL AND (status='' OR status IS NULL)"); } catch(Exception $e){}
 
 // ── Load collector ────────────────────────────────────────────
 $collector = $db->query("SELECT * FROM collectors WHERE id=$cid")->fetch();
 if (!$collector) { session_destroy(); header('Location: /disbasura/collector/login.php'); exit; }
+ensure_collector_notifications_table($db);
 
 // ── Handle mark_read redirect ─────────────────────────────────
-if (isset($_GET['mark_read'])) {
-    $col_user_q = $db->prepare("SELECT id FROM users WHERE username=?");
-    $col_user_q->execute([$collector['username'] ?? '']);
-    $cu = $col_user_q->fetch();
-    if ($cu) $db->prepare("UPDATE notifications SET is_read=1 WHERE user_id=?")->execute([$cu['id']]);
-    header('Location: /disbasura/collector/dashboard.php'); exit;
-}
-
 // ── POST handlers ─────────────────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+
+    if (isset($_POST['mark_collector_notifications_read'])) {
+        $db->prepare('UPDATE collector_notifications SET is_read=1 WHERE collector_id=?')->execute([$cid]);
+        header('Location: /disbasura/collector/dashboard.php#notifications'); exit;
+    }
 
     // Set availability status
     if (isset($_POST['set_status'])) {
@@ -139,16 +137,9 @@ $active_requests = array_filter($requests, fn($r) => in_array($r['status'], ['as
 $done_requests   = array_filter($requests, fn($r) => $r['status'] === 'completed');
 
 // ── Fetch notifications ───────────────────────────────────────
-$col_user_stmt = $db->prepare("SELECT id FROM users WHERE username=?");
-$col_user_stmt->execute([$collector['username'] ?? '']);
-$col_user     = $col_user_stmt->fetch();
-$col_uid      = $col_user ? $col_user['id'] : 0;
-$notifs       = [];
-$notif_unread = 0;
-
-if ($col_uid) {
-    $ns = $db->prepare("SELECT * FROM notifications WHERE user_id=? ORDER BY created_at DESC LIMIT 30");
-    $ns->execute([$col_uid]);
-    $notifs       = $ns->fetchAll();
-    $notif_unread = count(array_filter($notifs, fn($n) => !$n['is_read']));
-}
+$ns = $db->prepare('SELECT * FROM collector_notifications WHERE collector_id=? ORDER BY created_at DESC LIMIT 30');
+$ns->execute([$cid]);
+$notifs = $ns->fetchAll();
+$unreadStmt = $db->prepare('SELECT COUNT(*) FROM collector_notifications WHERE collector_id=? AND is_read=0');
+$unreadStmt->execute([$cid]);
+$notif_unread = (int)$unreadStmt->fetchColumn();

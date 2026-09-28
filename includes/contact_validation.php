@@ -2,7 +2,10 @@
 
 /** Return a Philippine mobile number in canonical +639XXXXXXXXX form, or null. */
 function normalize_ph_mobile(string $phone): ?string {
-    $digits = preg_replace('/\D+/', '', trim($phone));
+    $phone = trim($phone);
+    // Do not silently turn entries such as "09abc..." into valid numbers.
+    if ($phone === '' || !preg_match('/^[0-9+().\s-]+$/D', $phone)) return null;
+    $digits = preg_replace('/\D+/', '', $phone);
     if (strlen($digits) === 11 && substr($digits, 0, 2) === '09') {
         $digits = '63'.substr($digits, 1);
     } elseif (strlen($digits) === 10 && substr($digits, 0, 1) === '9') {

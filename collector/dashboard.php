@@ -74,7 +74,7 @@ $isDark = (int)($collector['dark_mode'] ?? 0);
   </a>
   <div style="display:flex;align-items:center;gap:.5rem">
     <!-- Notification bell with badge -->
-    <a href="/disbasura/collector/dashboard.php#notifications" class="col-signout" style="position:relative;padding:.45rem .7rem" title="Notifications">
+    <a href="#notifications" class="col-signout" style="position:relative;padding:.45rem .7rem" title="Notifications" aria-label="Notifications (<?= (int)$notif_unread ?> unread)">
       <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
         <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/>
         <path d="M13.73 21a2 2 0 01-3.46 0"/>
@@ -225,6 +225,28 @@ $isDark = (int)($collector['dark_mode'] ?? 0);
       <span class="stat-c-label">Requests</span>
     </div>
   </div>
+
+  <!-- Collector Notifications -->
+  <section class="panel-card" id="notifications" style="scroll-margin-top:1.5rem">
+    <div class="panel-card-header">
+      <span class="panel-card-title">Notifications</span>
+      <div style="display:flex;align-items:center;gap:.65rem">
+        <span class="panel-card-count"><?= (int)$notif_unread ?> unread</span>
+        <?php if ($notif_unread > 0): ?><form method="POST" style="margin:0"><button type="submit" name="mark_collector_notifications_read" value="1" style="border:0;background:none;color:var(--green-main);font:inherit;font-size:.75rem;font-weight:700;cursor:pointer">Mark all read</button></form><?php endif; ?>
+      </div>
+    </div>
+    <?php if ($notifs): foreach ($notifs as $notification): ?>
+    <article style="padding:.8rem .25rem;border-bottom:1px solid var(--border-light);<?= empty($notification['is_read']) ? 'background:rgba(45,134,83,.06);' : '' ?>">
+      <div style="display:flex;justify-content:space-between;gap:1rem;align-items:flex-start">
+        <strong style="font-size:.84rem;color:var(--text-dark)"><?= htmlspecialchars($notification['title'] ?? 'Notification', ENT_QUOTES, 'UTF-8') ?></strong>
+        <time style="font-size:.7rem;color:var(--text-light);white-space:nowrap"><?= htmlspecialchars(fmt_date($notification['created_at'] ?? ''), ENT_QUOTES, 'UTF-8') ?></time>
+      </div>
+      <p style="margin:.3rem 0 0;font-size:.82rem;color:var(--text-mid);line-height:1.5"><?= nl2br(htmlspecialchars($notification['message'], ENT_QUOTES, 'UTF-8')) ?></p>
+    </article>
+    <?php endforeach; else: ?>
+    <div class="empty-state" style="padding:1.5rem;text-align:center"><p>No notifications yet. New assignments and schedules will appear here.</p></div>
+    <?php endif; ?>
+  </section>
 
   <!-- My Schedules -->
   <div class="panel-card">

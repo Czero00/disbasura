@@ -164,7 +164,7 @@ render_admin_header('', $unread, 'My Profile — DisBasura Admin');
       </div>
       <div class="field">
         <label>Mobile number</label>
-        <input type="tel" name="phone" value="<?= e($user['phone'] ?? '') ?>" placeholder="09XXXXXXXXX or +639XXXXXXXXX" required autocomplete="tel"/>
+<input type="tel" name="phone" value="<?= e($user['phone'] ?? '') ?>" placeholder="09XXXXXXXXX or +639XXXXXXXXX" inputmode="tel" oninput="this.value=this.value.replace(/[^0-9+() .-]/g,'')" required autocomplete="tel"/>
       </div>
       <button type="submit" class="btn-save" style="width:auto;padding:.65rem 1.5rem">Save Changes</button>
     </form>
