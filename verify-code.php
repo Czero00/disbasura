@@ -25,20 +25,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <link rel="stylesheet" href="/disbasura/assets/css/base.css"/>
 <link rel="stylesheet" href="/disbasura/assets/css/auth.css"/>
 </head>
-<body>
+<body class="verify-page">
 <div class="auth-bg">
-  <div class="auth-logo"><h1>DisBasura</h1><p>Enter your code</p></div>
-  <div class="auth-card">
-    <h2>Check Your Email</h2>
+  <main class="verify-layout" aria-labelledby="verify-title">
+    <div class="verify-brand"><h1>DisBasura</h1><p>Enter your code</p></div>
+    <section class="auth-card verify-card">
+    <h2 id="verify-title">Check Your Email</h2>
     <p class="sub">We sent a 6-digit code to <strong><?= htmlspecialchars($email) ?></strong></p>
     <?php if($error): ?><div class="alert-error"><?= htmlspecialchars($error) ?></div><?php endif; ?>
     <form method="POST">
       <input type="hidden" name="email" value="<?= htmlspecialchars($email) ?>"/>
-      <div class="field"><label>Reset Code</label><input type="text" name="code" placeholder="000000" maxlength="6" required style="font-size:1.5rem;letter-spacing:.5rem;text-align:center"/></div>
+      <div class="field"><label for="reset-code">Reset Code</label><input id="reset-code" class="no-icon verify-code-input" type="text" name="code" placeholder="000000" maxlength="6" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" aria-label="Six-digit reset code" required/></div>
       <button type="submit" class="btn-primary">Verify Code</button>
     </form>
     <div class="auth-footer"><a href="/disbasura/forgot-password.php">← Request new code</a></div>
-  </div>
+    </section>
+  </main>
 </div>
 </body>
 </html>

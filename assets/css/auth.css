@@ -305,6 +305,32 @@ html, body {
 .auth-credit a:hover { color: rgba(255,255,255,.7); }
 
 /* ── Responsive ── */
+/* Password reset code screen */
+.verify-page { overflow: auto; }
+.verify-page .auth-bg { min-height: 100vh; padding: 3rem 1.5rem; overflow: auto; }
+.verify-layout {
+  position: relative; z-index: 1; width: min(100%, 980px);
+  display: grid; grid-template-columns: minmax(220px, .8fr) minmax(0, 1fr);
+  align-items: center; gap: clamp(2rem, 6vw, 5rem);
+}
+.verify-brand { color: #0d2a1e; }
+.verify-brand h1 { font-family: 'Plus Jakarta Sans', sans-serif; font-size: clamp(2.2rem, 5vw, 3.4rem); font-weight: 900; letter-spacing: -.06em; line-height: 1.05; }
+.verify-brand p { margin-top: .65rem; font-size: 1.05rem; color: rgba(13,42,30,.78); }
+.verify-card { min-width: 0; }
+.verify-card h2 { margin-bottom: .65rem; }
+.verify-card .sub { margin-bottom: 1rem; color: rgba(13,42,30,.82); line-height: 1.55; overflow-wrap: anywhere; }
+.verify-card .sub strong { color: #0d2a1e; }
+.verify-code-input { padding-left: 1rem !important; font-size: 1.5rem !important; letter-spacing: .5rem; text-align: center; }
+.verify-code-input::placeholder { letter-spacing: .5rem; }
+@media (max-width: 640px) {
+  .verify-page .auth-bg { padding: 2rem 1rem; }
+  .verify-layout { grid-template-columns: 1fr; gap: 1.5rem; max-width: 460px; }
+  .verify-brand { text-align: center; }
+  .verify-brand h1 { font-size: 2.3rem; }
+  .verify-brand p { margin-top: .35rem; }
+  .verify-card { padding: 2rem 1.5rem; border-radius: 22px; }
+}
+
 @media (max-width: 520px) {
   html, body { overflow: auto; }
   .auth-bg { align-items: flex-start; padding: 2rem 0; overflow: auto; min-height: 100vh; }
