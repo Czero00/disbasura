@@ -29,18 +29,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <link rel="stylesheet" href="/disbasura/assets/css/base.css"/>
 <link rel="stylesheet" href="/disbasura/assets/css/auth.css"/>
 </head>
-<body>
+<body class="reset-password-page">
 <div class="auth-bg">
   <div class="auth-logo"><h1>DisBasura</h1><p>Set new password</p></div>
-  <div class="auth-card">
-    <h2>Reset Password</h2>
+  <main class="auth-card reset-card" aria-labelledby="reset-title">
+    <h2 id="reset-title">Reset Password</h2>
     <?php if($error): ?><div class="alert-error"><?= htmlspecialchars($error) ?></div><?php endif; ?>
     <form method="POST">
-      <div class="field"><label>New Password</label><input type="password" name="password" placeholder="At least 6 characters" required/></div>
-      <div class="field"><label>Confirm Password</label><input type="password" name="confirm" required/></div>
+      <div class="field"><label for="new-password">New Password</label><input id="new-password" class="no-icon" type="password" name="password" placeholder="At least 6 characters" minlength="6" autocomplete="new-password" required/></div>
+      <div class="field"><label for="confirm-password">Confirm Password</label><input id="confirm-password" class="no-icon" type="password" name="confirm" minlength="6" autocomplete="new-password" required/></div>
       <button type="submit" class="btn-primary">Reset Password</button>
     </form>
-  </div>
+  </main>
 </div>
 </body>
 </html>

@@ -119,6 +119,7 @@ const truckIcon = L.divIcon({className:'', html:'<div style="background:#2d8653;
 
 function formatPHT(raw){ if(!raw) return 'unknown'; const d=new Date(raw.replace(' ','T')); return d.toLocaleTimeString('en-PH',{hour:'2-digit',minute:'2-digit',hour12:true}); }
 
+function ageLabel(seconds){seconds=Math.max(0,Number(seconds)||0);if(seconds<60)return seconds+'s ago';if(seconds<3600)return Math.floor(seconds/60)+'m ago';return Math.floor(seconds/3600)+'h ago';}
 function refreshTrucks(){
   fetch('/disbasura/api/tracker-public.php')
     .then(r=>r.json())
@@ -126,6 +127,7 @@ function refreshTrucks(){
       const list = document.getElementById('truckList');
       if (!trucks.length){
         list.innerHTML = '<div class="empty-state" style="grid-column:1/-1;padding:2rem;text-align:center;color:#7aab8a">No collectors are currently sharing their location.</div>';
+        Object.keys(markers).forEach(id=>{map.removeLayer(markers[id]);delete markers[id];});
         return;
       }
       list.innerHTML = trucks.map(t => `
@@ -134,14 +136,14 @@ function refreshTrucks(){
           <div>
             <strong style="display:block;font-size:.88rem;font-weight:700">${t.full_name}</strong>
             <span style="display:block;font-size:.75rem;color:#7aab8a">📍 ${t.sitio}</span>
-            <span style="display:block;font-size:.72rem;color:#2d8653">Last ping: ${formatPHT(t.truck_updated_at)}</span>
+            <span style="display:block;font-size:.72rem;color:${t.gps_fresh?'#2d8653':'#b54708'}">${t.gps_fresh?'Live - updated '+ageLabel(t.gps_age_seconds):'&#9888; GPS stale - last update '+ageLabel(t.gps_age_seconds)}</span>
           </div>
         </div>`).join('');
 
       trucks.forEach(t => {
-        if (!t.truck_lat || !t.truck_lng) return;
+        if (!t.gps_fresh || !t.truck_lat || !t.truck_lng) { if (markers[t.id]) { map.removeLayer(markers[t.id]); delete markers[t.id]; } return; }
         const latlng = [t.truck_lat, t.truck_lng];
-        const popup = `<strong>${t.full_name}</strong><br>📍 ${t.sitio}<br><small>Updated: ${formatPHT(t.truck_updated_at)}</small>`;
+        const popup = `<strong>${t.full_name}</strong><br>${t.sitio}<br><small>Updated: ${formatPHT(t.truck_updated_at)}</small>`;
         if (markers[t.id]) { markers[t.id].setLatLng(latlng).bindPopup(popup); }
         else { markers[t.id] = L.marker(latlng, {icon: truckIcon}).addTo(map).bindPopup(popup); }
       });

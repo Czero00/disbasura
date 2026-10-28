@@ -8,16 +8,15 @@
  */
 require_once __DIR__ . '/../config/session.php';
 require_once __DIR__ . '/../config/db.php';
+require_once __DIR__ . '/../includes/gps_helpers.php';
 header('Content-Type: application/json');
+header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
 
-if (!isset($_SESSION['user_id']) || !in_array($_SESSION['role'] ?? '', ['resident', 'leader'])) {
-    echo json_encode([]); exit;
+if (!isset($_SESSION['user_id']) || !in_array($_SESSION['role'] ?? '', ['resident', 'leader'], true)) {
+    http_response_code(403);
+    echo json_encode(['error' => 'Sign in as a resident or sitio leader to view truck locations.']);
+    exit;
 }
 
 $db = get_db();
-$trucks = $db->query(
-    "SELECT id, full_name, sitio, status, truck_lat, truck_lng, truck_updated_at
-     FROM collectors WHERE truck_lat BETWEEN 10.15 AND 10.52
-       AND truck_lng BETWEEN 123.70 AND 124.12"
-)->fetchAll();
-echo json_encode($trucks);
+echo json_encode(get_visible_truck_locations($db, (string)($_SESSION['sitio'] ?? '')));

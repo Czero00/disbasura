@@ -5,6 +5,7 @@ $_GET['role'] = 'collector';
 require_once __DIR__ . '/../config/session.php';
 require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/../includes/helpers.php';
+require_once __DIR__ . '/../includes/gps_helpers.php';
 header('Content-Type: application/json');
 if (!isset($_SESSION['collector_id'])) { http_response_code(403); exit; }
 $data = json_decode(file_get_contents('php://input'), true);
@@ -26,6 +27,33 @@ if ($lat === false || $lng === false || $accuracy === false || $accuracy > 100
     exit;
 }
 
+$updatedAt = now_pht();
+$collectorId = (int)$_SESSION['collector_id'];
 $db->prepare('UPDATE collectors SET truck_lat=?,truck_lng=?,truck_updated_at=? WHERE id=?')
-   ->execute([$lat, $lng, now_pht(), $_SESSION['collector_id']]);
+   ->execute([$lat, $lng, $updatedAt, $collectorId]);
+
+// Keep a route breadcrumb every 30 seconds. A history write failure must not
+// prevent the current live position from being shared.
+try {
+    ensure_tracking_history_schema($db);
+    $lastPoint = $db->prepare('SELECT MAX(`timestamp`) FROM tracking_history WHERE collector_id=?');
+    $lastPoint->execute([$collectorId]);
+    $lastAt = $lastPoint->fetchColumn();
+    if (!$lastAt) {
+        $shouldRecord = true;
+    } else {
+        $zone = new DateTimeZone('Asia/Manila');
+        $lastTime = new DateTimeImmutable((string)$lastAt, $zone);
+        $currentTime = new DateTimeImmutable($updatedAt, $zone);
+        $shouldRecord = ($currentTime->getTimestamp() - $lastTime->getTimestamp()) >= GPS_HISTORY_SAMPLE_SECONDS;
+    }
+    if ($shouldRecord) {
+        $pointId = (string)($data['point_id'] ?? bin2hex(random_bytes(16)));
+        if (!preg_match('/^[a-zA-Z0-9-]{16,36}$/', $pointId)) $pointId = bin2hex(random_bytes(16));
+        $db->prepare('INSERT IGNORE INTO tracking_history (collector_id,latitude,longitude,accuracy,client_point_id,`timestamp`) VALUES (?,?,?,?,?,?)')
+           ->execute([$collectorId, $lat, $lng, $accuracy, $pointId, $updatedAt]);
+    }
+} catch (Throwable $e) {
+    error_log('DisBasura GPS history write failed: ' . $e->getMessage());
+}
 http_response_code(204);

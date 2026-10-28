@@ -1,5 +1,4 @@
 <?php
-// Shared schema and configuration helpers for special-pickup payments.
 require_once __DIR__ . '/../config/db.php';
 
 function ensure_pickup_payment_tables(PDO $db): void {
@@ -30,6 +29,7 @@ function ensure_pickup_payment_tables(PDO $db): void {
         status ENUM('pending','paid','rejected') NOT NULL DEFAULT 'pending',
         admin_note VARCHAR(500) NULL,
         reviewed_by INT NULL,
+        reviewed_by_role ENUM('admin','leader') NULL,
         created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
         reviewed_at DATETIME NULL,
         INDEX idx_pickup_payments_request (request_id, id),
@@ -37,6 +37,10 @@ function ensure_pickup_payment_tables(PDO $db): void {
         CONSTRAINT fk_pickup_payments_request FOREIGN KEY (request_id) REFERENCES requests(id) ON DELETE CASCADE,
         CONSTRAINT fk_pickup_payments_resident FOREIGN KEY (resident_id) REFERENCES users(id) ON DELETE CASCADE
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+    $settingsColumns = $db->query('SHOW COLUMNS FROM pickup_payment_settings')->fetchAll(PDO::FETCH_COLUMN);
+    if (!in_array('allow_qrph', $settingsColumns, true)) $db->exec('ALTER TABLE pickup_payment_settings ADD COLUMN allow_qrph TINYINT(1) NOT NULL DEFAULT 1');
+    if (!in_array('allow_cash', $settingsColumns, true)) $db->exec('ALTER TABLE pickup_payment_settings ADD COLUMN allow_cash TINYINT(1) NOT NULL DEFAULT 1');
     try { $db->exec("ALTER TABLE pickup_payments ADD COLUMN reviewed_by_role ENUM('admin','leader') NULL AFTER reviewed_by"); } catch (Throwable $e) {}
     $ready = true;
 }

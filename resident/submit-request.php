@@ -9,7 +9,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $wasteType = trim($_POST['waste_type'] ?? '');
     $preferredDate = trim($_POST['preferred_date'] ?? '');
     $note = trim($_POST['note'] ?? '');
-    $allowedWaste = ['Biodegradable', 'Non-Biodegradable', 'Recyclable / Bulk', 'Hazardous'];
+    $allowedWaste = ['Biodegradable', 'Non-Biodegradable', 'Recyclable / Bulk', 'Mixed'];
     $date = DateTime::createFromFormat('Y-m-d\TH:i', $preferredDate);
     if (!in_array($sitio, $sitios, true) || !in_array($wasteType, $allowedWaste, true) || !$location || !$date || $date <= new DateTime()) {
         $error = 'Please check the required fields and choose a future pickup date and time.';
@@ -64,7 +64,7 @@ $selectedWaste = $_POST['waste_type'] ?? 'Biodegradable';
       <div class="field"><label class="field-label" for="sitio">Sitio / Zone location <span class="required">*</span></label><div class="input-wrap"><span class="field-icon">📍</span><select class="control" id="sitio" name="sitio" required><option value="" <?= $selectedSitio===''?'selected':'' ?>>Select Your Sitio</option><?php foreach($sitios as $s): ?><option value="<?= e($s) ?>" <?= $selectedSitio===$s?'selected':'' ?>><?= e($s) ?></option><?php endforeach; ?></select></div></div>
       <div class="field"><label class="field-label" for="location">Specific address / landmark <span class="required">*</span></label><div class="input-wrap"><span class="field-icon">⌂</span><input class="control" id="location" type="text" name="location" value="<?= e($_POST['location'] ?? '') ?>" placeholder="e.g. House #12, near basketball court" maxlength="500" required/></div></div>
       <fieldset class="field" style="padding:0;border:0;margin-left:0;margin-right:0"><legend class="field-label">Waste category <span class="required">*</span></legend><div class="waste-grid">
-        <?php foreach ([['Biodegradable','Organic / Food waste','🍃'],['Non-Biodegradable','Plastics, Wrappers','▤'],['Recyclable / Bulk','Bottles, Furniture','♻'],['Hazardous','Electronics, Chemicals','⚠']] as [$type,$desc,$icon]): ?>
+        <?php foreach ([['Biodegradable','Organic / Food waste','🍃'],['Non-Biodegradable','Plastics, Wrappers','▤'],['Recyclable / Bulk','Bottles, Furniture','♻'],['Mixed','Mixed household waste','⚠']] as [$type,$desc,$icon]): ?>
         <label class="waste-option"><input type="radio" name="waste_type" value="<?= e($type) ?>" <?= $selectedWaste===$type?'checked':'' ?> required/><span class="waste-tile"><span class="waste-icon"><?= $icon ?></span><span class="waste-copy"><strong><?= e($type) ?></strong><small><?= e($desc) ?></small></span></span></label>
         <?php endforeach; ?>
       </div></fieldset>

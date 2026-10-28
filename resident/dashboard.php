@@ -20,8 +20,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $reqStmt = $db->prepare("SELECT * FROM requests WHERE id=? AND resident_id=? AND status='approved'");
         $reqStmt->execute([$rid, $uid]); $req = $reqStmt->fetch();
         $latest = $req ? get_latest_pickup_payment($db, $rid) : null;
-        $method = ($_POST['payment_method'] ?? '') === 'cash' ? 'cash' : 'qrph';
-        $methodEnabled = $method === 'cash' ? !empty($paymentSettings['allow_cash']) : !empty($paymentSettings['allow_qrph']);
+        $method = (string)($_POST['payment_method'] ?? 'qrph');
+        if (!in_array($method, ['cash', 'qrph'], true)) $method = '';
+        $methodEnabled = $method === 'cash' ? !empty($paymentSettings['allow_cash'])
+            : ($method === 'qrph' && !empty($paymentSettings['allow_qrph']));
         if ($req && is_pickup_payment_required($paymentSettings) && $methodEnabled && (!$latest || $latest['status'] === 'rejected')) {
             $reference = trim($_POST['reference_number'] ?? '');
             $proof = null;
@@ -30,12 +32,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $proof = save_upload($_FILES['payment_proof'], "payment_{$rid}_{$uid}");
                 }
                 if (!$proof || $reference === '') {
-                    $_SESSION['payment_error'] = 'For QR/e-wallet payments, add the transaction reference and upload a clear receipt photo.';
+                    $_SESSION['payment_error'] = 'For manual QR Ph payments, add the transaction reference and upload a clear receipt photo.';
                     header('Location: /disbasura/resident/dashboard.php'); exit;
                 }
             }
             $db->prepare("INSERT INTO pickup_payments (request_id,resident_id,amount,method,reference_number,proof_photo,status) VALUES (?,?,?,?,?,?,'pending')")
                 ->execute([$rid, $uid, (float)$paymentSettings['fee'], $method, $reference ?: null, $proof]);
+            $paymentId = (int)$db->lastInsertId();
             notify_sitio_leaders($db, (string)$req['sitio'], "Resident submitted payment for special pickup request #{$rid}; please verify it.", 'Payment awaiting review');
             notify_user($db, $uid, 'Your payment submission is waiting for your Sitio Leader to verify.');
         }
@@ -452,11 +455,12 @@ $dark = $prefs['dark_mode'] ? 'dark' : '';
                 <?php else: ?>
                 <span style="font-size:.72rem;color:#f5a623;font-weight:700;background:#fff3e0;padding:.2rem .6rem;border-radius:20px;border:1px solid #fdd9a0">⭐ Rated</span>
                 <?php endif; ?>
+                <a href="/disbasura/resident/dispute.php?sid=<?= (int)$s['id'] ?>" style="display:inline-flex;align-items:center;gap:.3rem;background:#fff0ed;color:#a52a1a;border:1px solid #efb5aa;border-radius:20px;padding:.3rem .75rem;text-decoration:none;font-size:.75rem;font-weight:800">Report Issue</a>
                 <?php if (empty($s['resident_proof_photo'])): ?>
                 <button onclick="openResProof(<?= (int)$s['id'] ?>,'<?= htmlspecialchars($s['waste_type'], ENT_QUOTES) ?> — <?= htmlspecialchars($s['sitio'] ?? $sitio, ENT_QUOTES) ?>')" style="font-size:.73rem;background:#1e6b3c;color:#fff;border:none;border-radius:20px;padding:.3rem .7rem;cursor:pointer;font-family:inherit;font-weight:700">📷 Submit Photo Proof</button>
                 <?php else: ?>
                 <span style="font-size:.72rem;color:#1e6b3c;font-weight:700;background:#e8f5ee;padding:.2rem .6rem;border-radius:20px;border:1px solid #b6d9c3">📷 Proof Sent</span>
-                <?php endif; ?>
+              <?php endif; ?>
               <?php endif; ?>
             </td>
           </tr>
@@ -496,9 +500,7 @@ $dark = $prefs['dark_mode'] ? 'dark' : '';
                 <?php if(!in_array($s['id'],$my_feedback_ids)): ?>
                 <button onclick="openFeedback(<?= $s['id'] ?>)" style="font-size:.73rem;background:#fff3e0;color:#f5a623;border:1px solid #fdd9a0;border-radius:20px;padding:.25rem .65rem;cursor:pointer;font-family:inherit;font-weight:700">⭐ Rate</button>
                 <?php else: ?><span style="font-size:.72rem;color:#f5a623;font-weight:700;background:#fff3e0;padding:.2rem .6rem;border-radius:20px;border:1px solid #fdd9a0">⭐ Rated</span><?php endif; ?>
-                <?php if(!in_array($s['id'],$my_dispute_ids)): ?>
-                <a href="/disbasura/resident/dispute.php?sid=<?= $s['id'] ?>" style="font-size:.73rem;background:#fdecea;color:#c0392b;border:1px solid #f5c6c6;border-radius:20px;padding:.25rem .65rem;text-decoration:none;font-weight:700">⚠️ Dispute</a>
-                <?php endif; ?>
+                <a class="schedule-dispute-action" href="/disbasura/resident/dispute.php?sid=<?= (int)$s['id'] ?>" style="display:inline-flex;align-items:center;gap:.3rem;background:#fff0ed;color:#a52a1a;border:1px solid #efb5aa;border-radius:20px;padding:.3rem .75rem;text-decoration:none;font-size:.75rem;font-weight:800">Report Issue</a>
               <?php endif; ?>
               <?php
                 // Allow proof for completed, unverified, assigned, scheduled
@@ -550,10 +552,10 @@ $dark = $prefs['dark_mode'] ? 'dark' : '';
               <form method="POST" enctype="multipart/form-data" style="display:flex;flex-wrap:wrap;gap:.35rem;align-items:center">
                 <input type="hidden" name="request_id" value="<?= (int)$r['id'] ?>"><input type="hidden" name="submit_pickup_payment" value="1">
                 <select name="payment_method" onchange="this.form.querySelector('.payment-qr-fields').style.display=this.value==='qrph'?'flex':'none'" style="font:inherit;font-size:.72rem;border:1px solid #cfe2d5;border-radius:8px;padding:.35rem">
-                  <?php if (!empty($paymentSettings['allow_qrph'])): ?><option value="qrph">QR Ph / e-wallet</option><?php endif; ?>
+                  <?php if (!empty($paymentSettings['allow_qrph'])): ?><option value="qrph">QR Ph (manual review)</option><?php endif; ?>
                   <?php if (!empty($paymentSettings['allow_cash'])): ?><option value="cash">Cash at office</option><?php endif; ?>
                 </select>
-                <div class="payment-qr-fields" style="display:flex;gap:.3rem;flex-wrap:wrap;align-items:center"><input name="reference_number" placeholder="Transaction reference" style="width:145px;font-size:.72rem"><input type="file" name="payment_proof" accept="image/*" style="max-width:145px;font-size:.7rem"></div>
+                <div class="payment-qr-fields" style="display:<?= !empty($paymentSettings['allow_qrph']) ? 'flex' : 'none' ?>;gap:.3rem;flex-wrap:wrap;align-items:center"><input name="reference_number" placeholder="Transaction reference" style="width:145px;font-size:.72rem"><input type="file" name="payment_proof" accept="image/*" style="max-width:145px;font-size:.7rem"></div>
                 <button type="submit" class="btn-approve" style="font-size:.72rem;padding:.35rem .6rem">Pay ₱<?= number_format((float)$paymentSettings['fee'],2) ?></button>
               </form>
               <?php if ($pickupPayment && $pickupPayment['status']==='rejected'): ?><small style="width:100%;color:#a33">Previous attempt rejected<?= $pickupPayment['admin_note'] ? ': '.e($pickupPayment['admin_note']) : '' ?>. Submit a corrected payment below.</small><?php endif; ?>

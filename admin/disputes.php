@@ -1,10 +1,12 @@
 <?php
 require_once __DIR__ . '/../middleware/admin_auth.php';
 require_once __DIR__ . '/../includes/helpers.php';
+require_once __DIR__ . '/../includes/dispute_helpers.php';
 require_once __DIR__ . '/../includes/base_admin.php';
 $db = get_db();
 
-$disputeHasUserId = (bool)$db->query("SHOW COLUMNS FROM disputes LIKE 'user_id'")->fetch();
+$disputeColumns = ensure_dispute_schema($db);
+$disputeHasUserId = in_array('user_id', $disputeColumns, true);
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $did     = (int)($_POST['did'] ?? 0);
@@ -14,8 +16,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $dispute = $disputeStmt->fetch();
     if ($dispute) {
         $resolution = $verdict === 'confirm' ? 'confirm' : 'reopen';
-        $db->prepare("UPDATE disputes SET status='resolved',resolution=?,admin_id=? WHERE id=?")
-            ->execute([$resolution,$_SESSION['admin_id'],$did]);
+        $verdictSql = in_array('admin_verdict', $disputeColumns, true) ? ',admin_verdict=?' : '';
+        $verdictParams = [$resolution, $_SESSION['admin_id']];
+        if ($verdictSql !== '') $verdictParams[] = $resolution;
+        $verdictParams[] = $did;
+        $db->prepare("UPDATE disputes SET status='resolved',resolution=?,admin_id=?$verdictSql WHERE id=?")
+            ->execute($verdictParams);
         if ($verdict === 'confirm') {
             $db->prepare("UPDATE schedules SET status='completed' WHERE id=?")->execute([$dispute['schedule_id']]);
             if (!empty($dispute['user_id'])) {

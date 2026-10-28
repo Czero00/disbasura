@@ -110,6 +110,7 @@ render_admin_header('requests',$unread,'Requests — DisBasura Admin');
   <?php endforeach; ?>
 </div>
 <?php if($requests): foreach($requests as $r): ?>
+<?php $requestPayment = get_latest_pickup_payment($db, (int)$r['id']); $requestPaymentRequired = is_pickup_payment_required($pickupPaymentSettings); ?>
 <div class="panel" style="margin-bottom:1rem">
   <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:.75rem;margin-bottom:.75rem">
     <div>
@@ -117,6 +118,15 @@ render_admin_header('requests',$unread,'Requests — DisBasura Admin');
       <?php if($r['submitted_by_name']): ?><span style="font-size:.78rem;color:var(--text-light)"> (via <?= htmlspecialchars($r['submitted_by_name']) ?>)</span><?php endif; ?>
       <div style="font-size:.82rem;color:var(--text-mid);margin-top:.2rem">📍  <?= htmlspecialchars($r['sitio']) ?> · <?= htmlspecialchars($r['waste_type']) ?></div>
       <div style="font-size:.78rem;color:var(--text-light)">📅 Preferred: <?= fmt_date($r['preferred_date']) ?></div>
+      <?php if($requestPaymentRequired): ?>
+        <?php if($requestPayment && $requestPayment['status']==='paid'): ?>
+          <div style="margin-top:.4rem"><span style="display:inline-block;background:#e8f5ee;color:#176b3a;border:1px solid #b6d9c3;border-radius:20px;padding:.25rem .7rem;font-size:.75rem;font-weight:800">Payment verified - ready for collector assignment</span></div>
+        <?php elseif($requestPayment && $requestPayment['status']==='pending'): ?>
+          <div style="margin-top:.4rem"><span style="display:inline-block;background:#fff4d9;color:#916300;border:1px solid #f0d58b;border-radius:20px;padding:.25rem .7rem;font-size:.75rem;font-weight:700">Payment receipt awaiting Sitio Leader review</span></div>
+        <?php else: ?>
+          <div style="margin-top:.4rem"><span style="display:inline-block;background:#fff4d9;color:#916300;border:1px solid #f0d58b;border-radius:20px;padding:.25rem .7rem;font-size:.75rem;font-weight:700">Payment not verified yet</span></div>
+        <?php endif; ?>
+      <?php endif; ?>
       <?php if($r['note']): ?><div style="font-size:.78rem;color:var(--text-mid);margin-top:.2rem">💬 <?= htmlspecialchars($r['note']) ?></div><?php endif; ?>
       <?php if($r['location']): ?><div style="font-size:.78rem;color:var(--text-mid)">🏠 <?= htmlspecialchars($r['location']) ?></div><?php endif; ?>
     </div>
@@ -139,7 +149,7 @@ render_admin_header('requests',$unread,'Requests — DisBasura Admin');
     <?php if(!is_pickup_payment_required($pickupPaymentSettings)): ?><span style="font-size:.75rem;color:#946200">Payment setup is required; clicking Approve will open Payments.</span><?php endif; ?>
     <form method="POST" style="display:inline"><input type="hidden" name="id" value="<?= $r['id'] ?>"><button type="submit" name="reject" class="btn-reject" style="font-size:.8rem;padding:.4rem .9rem">❌ Reject</button></form>
     <?php endif; ?>
-    <?php if($r['status']==='approved'):
+    <?php if($r['status']==='approved' && (!$requestPaymentRequired || ($requestPayment && $requestPayment['status']==='paid'))):
         $recs = get_smart_dispatch_recommendations($db, $r);
         $topRec = $recs[0] ?? null;
     ?>
@@ -170,6 +180,8 @@ render_admin_header('requests',$unread,'Requests — DisBasura Admin');
       </select>
       <button type="submit" name="assign" class="btn-approve" style="font-size:.8rem;padding:.4rem .9rem">🚛 Assign</button>
     </form>
+    <?php elseif($r['status']==='approved'): ?>
+    <span style="font-size:.78rem;color:#916300;font-weight:700">Collector assignment unlocks after the Sitio Leader verifies payment.</span>
     <?php endif; ?>
     <?php if($r['status']==='assigned'): ?>
     <form method="POST" style="display:inline" onsubmit="return confirm('Mark this request as completed?')">

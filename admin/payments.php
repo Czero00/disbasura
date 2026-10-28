@@ -26,7 +26,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 $settings = get_pickup_payment_settings($db);
-$paymentsActive = !empty($settings['enabled']) && (float)$settings['fee'] > 0 && (!empty($settings['allow_qrph']) || !empty($settings['allow_cash']));
+$paymentsActive = is_pickup_payment_required($settings);
 $settingsSaved = !empty($_SESSION['payment_settings_saved']);
 unset($_SESSION['payment_settings_saved']);
 $unread = get_unread_admin_count($_SESSION['admin_id']);
@@ -47,7 +47,7 @@ render_admin_header('payments', $unread, 'Payments — DisBasura Admin');
       <label class="sp-field" style="grid-column:1/-1"><span class="sp-check"><input type="checkbox" name="enabled" value="1"> Enable special pickup payment</span></label>
       <label class="sp-field">Fee amount (₱)<input type="number" name="fee" min="0" step="0.01" placeholder="e.g. 50.00"></label>
       <label class="sp-field">Recipient / account name<input type="text" name="merchant_name" maxlength="160" placeholder="e.g. Barangay Treasurer"></label>
-      <div class="sp-field" style="grid-column:1/-1"><span>Available payment methods</span><div class="sp-checks"><label class="sp-check"><input type="checkbox" name="allow_qrph" value="1"> QR Ph / e-wallet (manual review)</label><label class="sp-check"><input type="checkbox" name="allow_cash" value="1"> Cash at barangay office</label></div><small style="font-weight:500">Select the method or methods your barangay accepts.</small></div>
+      <div class="sp-field" style="grid-column:1/-1"><span>Available payment methods</span><div class="sp-checks"><label class="sp-check"><input type="checkbox" name="allow_qrph" value="1"> QR Ph (manual receipt review)</label><label class="sp-check"><input type="checkbox" name="allow_cash" value="1"> Cash at barangay office</label></div></div>
       <label class="sp-field" style="grid-column:1/-1">Instructions for residents<textarea name="instructions" rows="3" maxlength="2000" placeholder="e.g. Pay at the barangay hall, then upload your receipt."></textarea></label>
       <label class="sp-field">QR image (optional)<input type="file" name="qr_image" accept="image/png,image/jpeg,image/webp"><small>Example: upload your official barangay payment QR.</small></label>
       <div class="sp-field">QR image preview<span style="font-weight:500;color:var(--text-light);opacity:.72">Your uploaded QR will appear here after you save.</span></div>
@@ -55,5 +55,5 @@ render_admin_header('payments', $unread, 'Payments — DisBasura Admin');
     </form>
   </details>
 </section>
-<div class="panel sp-empty">Payment submissions and receipt images are visible only to the Sitio Leader assigned to the resident’s sitio, in <a href="/disbasura/leader/payments.php">Review Payments</a>.</div>
+<div class="panel sp-empty">Sitio Leaders verify resident receipts from <strong>Payment Review</strong> in their own dashboard. Admins receive an alert after a payment is verified and can assign the collector from <a href="/disbasura/admin/requests.php?status=approved">Approved Requests</a>.</div>
 <?php render_admin_footer(); ?>

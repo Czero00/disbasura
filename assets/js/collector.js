@@ -113,6 +113,122 @@ document.getElementById('reqProofViewModal').addEventListener('click', function 
 var gpsWatchId = null;
 var tracking = false;
 var gpsOutOfArea = false;
+var gpsQueueDb = null;
+var lastQueuedAt = 0;
+var gpsQueueFlushBusy = false;
+var gpsCard = document.getElementById('gpsCard');
+var GPS_QUEUE_DB = 'disbasura-gps-queue-' + (gpsCard ? gpsCard.getAttribute('data-collector-id') : 'unknown');
+var GPS_QUEUE_STORE = 'points';
+var GPS_QUEUE_INTERVAL_MS = 30000;
+var GPS_QUEUE_MAX_POINTS = 2880;
+
+function openGpsQueue() {
+  if (!('indexedDB' in window)) return Promise.reject(new Error('Offline GPS storage is unavailable in this browser.'));
+  if (gpsQueueDb) return Promise.resolve(gpsQueueDb);
+  return new Promise(function (resolve, reject) {
+    var request = indexedDB.open(GPS_QUEUE_DB, 1);
+    request.onupgradeneeded = function () {
+      var db = request.result;
+      if (!db.objectStoreNames.contains(GPS_QUEUE_STORE)) db.createObjectStore(GPS_QUEUE_STORE, { keyPath: 'id' });
+    };
+    request.onsuccess = function () { gpsQueueDb = request.result; resolve(gpsQueueDb); };
+    request.onerror = function () { reject(request.error || new Error('Could not open offline GPS storage.')); };
+  });
+}
+
+function queueGpsPoint(point) {
+  return openGpsQueue().then(function (db) {
+    return new Promise(function (resolve, reject) {
+      var tx = db.transaction(GPS_QUEUE_STORE, 'readwrite');
+      var store = tx.objectStore(GPS_QUEUE_STORE);
+      store.put(point);
+      var allRequest = store.getAll();
+      allRequest.onsuccess = function () {
+        var entries = (allRequest.result || []).sort(function (a, b) { return a.captured_at.localeCompare(b.captured_at); });
+        var cutoff = Date.now() - 86400000;
+        entries.forEach(function (entry, index) {
+          if (index < entries.length - GPS_QUEUE_MAX_POINTS || Date.parse(entry.captured_at) < cutoff) store.delete(entry.id);
+        });
+      };
+      tx.oncomplete = resolve;
+      tx.onerror = function () { reject(tx.error || new Error('Could not save GPS point offline.')); };
+    });
+  });
+}
+
+function getGpsQueueBatch() {
+  return openGpsQueue().then(function (db) {
+    return new Promise(function (resolve, reject) {
+      var tx = db.transaction(GPS_QUEUE_STORE, 'readonly');
+      var request = tx.objectStore(GPS_QUEUE_STORE).getAll();
+      request.onsuccess = function () {
+        resolve((request.result || []).sort(function (a, b) { return a.captured_at.localeCompare(b.captured_at); }).slice(0, 100));
+      };
+      request.onerror = function () { reject(request.error || new Error('Could not read offline GPS points.')); };
+    });
+  });
+}
+
+function deleteGpsQueueBatch(points) {
+  return openGpsQueue().then(function (db) {
+    return new Promise(function (resolve, reject) {
+      var tx = db.transaction(GPS_QUEUE_STORE, 'readwrite');
+      var store = tx.objectStore(GPS_QUEUE_STORE);
+      points.forEach(function (point) { store.delete(point.id); });
+      tx.oncomplete = resolve;
+      tx.onerror = function () { reject(tx.error || new Error('Could not clear synchronized GPS points.')); };
+    });
+  });
+}
+
+function updateGpsQueueStatus(message) {
+  var el = document.getElementById('gpsQueueStatus');
+  if (el) el.textContent = message || '';
+}
+
+function flushGpsQueue() {
+  if (gpsQueueFlushBusy || !navigator.onLine) return;
+  gpsQueueFlushBusy = true;
+  getGpsQueueBatch().then(function (points) {
+    if (!points.length) { updateGpsQueueStatus(''); return; }
+    return fetch('/disbasura/api/gps-history-sync.php', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ points: points })
+    }).then(function (response) {
+      if (!response.ok) throw new Error('Saved GPS points are waiting for the server.');
+      return response.json().then(function (result) { return deleteGpsQueueBatch(points).then(function () { return result; }); });
+    }).then(function (result) {
+      if (!result) return;
+      return getGpsQueueBatch().then(function (remaining) {
+        updateGpsQueueStatus(result.skipped
+          ? result.skipped + ' old or invalid offline GPS points were discarded; ' + remaining.length + ' still waiting.'
+          : (remaining.length ? remaining.length + ' offline GPS points still waiting to sync.' : 'Offline GPS history synced.'));
+        if (remaining.length) setTimeout(flushGpsQueue, 500);
+      });
+    });
+  }).catch(function (error) {
+    updateGpsQueueStatus(error.message || 'Offline GPS points are waiting to sync.');
+  }).finally(function () { gpsQueueFlushBusy = false; });
+}
+
+function makeGpsPoint(pos) {
+  return {
+    id: (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : Date.now().toString(36) + '-' + Math.random().toString(36).slice(2),
+    lat: pos.coords.latitude,
+    lng: pos.coords.longitude,
+    accuracy: pos.coords.accuracy,
+    captured_at: new Date(pos.timestamp || Date.now()).toISOString()
+  };
+}
+
+window.addEventListener('online', function () {
+  updateGpsQueueStatus('Connection restored. Syncing saved GPS history…');
+  flushGpsQueue();
+});
+window.addEventListener('offline', function () {
+  updateGpsQueueStatus('Offline. GPS points are saved on this device; live location is not shared.');
+});
+setInterval(flushGpsQueue, 15000);
 
 // Broad Cebu City service-area guard. It prevents clearly wrong readings
 // (such as Leyte) from being published; the GPS coordinates remain device-based.
@@ -135,17 +251,16 @@ function startGPS() {
   document.getElementById('gpsBtn').classList.add('active');
   document.getElementById('gpsDot').classList.remove('off');
   document.getElementById('gpsStatus').textContent = 'Waiting for an accurate GPS fix…';
-  clearSharedLocation().then(function () {
-    if (!tracking) return;
-    gpsWatchId = navigator.geolocation.watchPosition(updateLocation, showLocationError, {
-      enableHighAccuracy: true,
-      maximumAge: 0,
-      timeout: 30000
-    });
-  }).catch(function () {
-    document.getElementById('gpsStatus').textContent = 'Could not connect to the tracker. Refresh and sign in again.';
-    resetGPSButton();
+  flushGpsQueue();
+  clearSharedLocation().catch(function () {
+    if (!navigator.onLine) document.getElementById('gpsStatus').textContent = 'Offline. Collecting device fixes locally; live location is not shared until the server is reachable.';
   });
+  gpsWatchId = navigator.geolocation.watchPosition(updateLocation, showLocationError, {
+    enableHighAccuracy: true,
+    maximumAge: 0,
+    timeout: 30000
+  });
+  if (!navigator.onLine) updateGpsQueueStatus('Offline. GPS history is queued on this device for up to 24 hours; no live location is shared.');
 }
 
 function stopGPS() {
@@ -193,26 +308,40 @@ function updateLocation(pos) {
     return;
   }
   if (!isInsideCebuCityArea(lat, lng)) {
-    if (!gpsOutOfArea) clearSharedLocation();
+    if (!gpsOutOfArea) clearSharedLocation().catch(function () {});
     gpsOutOfArea = true;
     document.getElementById('gpsStatus').textContent =
       'Your device reports ' + lat.toFixed(5) + ', ' + lng.toFixed(5) + ' outside the Cebu City service area. Location not shared.';
     return;
   }
   gpsOutOfArea = false;
+  var point = makeGpsPoint(pos);
+  if (Date.now() - lastQueuedAt >= GPS_QUEUE_INTERVAL_MS) {
+    lastQueuedAt = Date.now();
+    queueGpsPoint(point).then(flushGpsQueue).catch(function () {
+      updateGpsQueueStatus('This browser could not save the GPS fix for offline history.');
+    });
+  }
+  if (!navigator.onLine) {
+    document.getElementById('gpsStatus').textContent = 'GPS fix received, but offline; it is not live on the tracker.';
+    updateGpsQueueStatus('Offline. GPS points are saved on this device; live location is not shared.');
+    return;
+  }
   fetch('/disbasura/api/collector-gps.php', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ lat: lat, lng: lng, accuracy: accuracy })
+    body: JSON.stringify({ lat: lat, lng: lng, accuracy: accuracy, point_id: point.id })
   }).then(function (response) {
     if (response.ok) return;
     return response.json().catch(function () { return {}; }).then(function (body) {
       throw new Error(body.error || 'Location update failed (' + response.status + ').');
     });
   }).then(function () {
+    deleteGpsQueueBatch([point]).catch(function () {});
     document.getElementById('gpsStatus').textContent =
       '📍 ' + lat.toFixed(6) + ', ' + lng.toFixed(6) + ' · accuracy ±' + Math.round(accuracy) + ' m · Updated ' + new Date().toLocaleTimeString();
   }).catch(function (error) {
+    updateGpsQueueStatus('Connection lost. This GPS fix is saved locally for route history; live location is unavailable.');
     document.getElementById('gpsStatus').textContent = error.message || 'Could not share your location.';
   });
 }

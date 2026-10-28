@@ -1,6 +1,7 @@
 # Uploaded files (test photos, avatars) — not part of the codebase
 uploads/*
 !uploads/.gitkeep
+!uploads/.htaccess
 
 # OS junk
 .DS_Store

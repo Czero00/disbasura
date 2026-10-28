@@ -307,28 +307,44 @@ html, body {
 /* ── Responsive ── */
 /* Password reset code screen */
 .verify-page { overflow: auto; }
-.verify-page .auth-bg { min-height: 100vh; padding: 3rem 1.5rem; overflow: auto; }
+.verify-page .auth-bg { min-height: 100vh; padding: 2.5rem 1.25rem; overflow: auto; }
 .verify-layout {
-  position: relative; z-index: 1; width: min(100%, 980px);
-  display: grid; grid-template-columns: minmax(220px, .8fr) minmax(0, 1fr);
-  align-items: center; gap: clamp(2rem, 6vw, 5rem);
+  position: relative; z-index: 1; width: min(100%, 500px);
+  display: grid; grid-template-columns: minmax(0, 1fr);
+  align-items: center; gap: 1.5rem;
 }
-.verify-brand { color: #0d2a1e; }
-.verify-brand h1 { font-family: 'Plus Jakarta Sans', sans-serif; font-size: clamp(2.2rem, 5vw, 3.4rem); font-weight: 900; letter-spacing: -.06em; line-height: 1.05; }
-.verify-brand p { margin-top: .65rem; font-size: 1.05rem; color: rgba(13,42,30,.78); }
-.verify-card { min-width: 0; }
-.verify-card h2 { margin-bottom: .65rem; }
-.verify-card .sub { margin-bottom: 1rem; color: rgba(13,42,30,.82); line-height: 1.55; overflow-wrap: anywhere; }
-.verify-card .sub strong { color: #0d2a1e; }
-.verify-code-input { padding-left: 1rem !important; font-size: 1.5rem !important; letter-spacing: .5rem; text-align: center; }
-.verify-code-input::placeholder { letter-spacing: .5rem; }
+.verify-brand { color: #fff; text-align: center; }
+.verify-brand h1 { font-family: 'Plus Jakarta Sans', sans-serif; font-size: clamp(2rem, 5vw, 2.65rem); font-weight: 900; letter-spacing: -.06em; line-height: 1.05; text-shadow: 0 2px 18px rgba(0,0,0,.16); }
+.verify-brand p { margin-top: .45rem; font-size: .95rem; color: rgba(255,255,255,.82); }
+.verify-card { min-width: 0; padding: 2.25rem; background: rgba(244, 252, 248, .96); border: 1px solid rgba(255,255,255,.72); box-shadow: 0 24px 70px rgba(2,30,28,.24); }
+.verify-card h2 { margin-bottom: .55rem; }
+.verify-card .sub { margin-bottom: 1.4rem; color: #456458; line-height: 1.55; overflow-wrap: anywhere; }
+.verify-card .sub strong { color: #123c2b; }
+.verify-card .field label { display: block; margin: 0 0 .45rem .25rem; color: #315c49; font-size: .8rem; font-weight: 700; }
+.verify-code-input { padding-left: 1rem !important; font-size: 1.5rem !important; letter-spacing: .5rem; text-align: center; background: #fff !important; border-color: #b9d8c7 !important; }
+.verify-code-input::placeholder { letter-spacing: .5rem; color: #82998e !important; }
+.verify-card .auth-footer { color: #456458; margin-top: 1.1rem; }
+.verify-card .auth-footer a { color: #167044; }
+.verify-card .auth-footer a:hover { color: #0b4e2e; }
+.verify-card .alert-error { color: #9f2635; background: #fff0f1; border-color: #f2bdc3; }
+.reset-password-page { min-height: 100%; overflow: auto; }
+.reset-password-page .auth-bg { min-height: 100vh; height: auto; padding: 2rem 1rem; flex-direction: column; gap: 1.25rem; overflow: auto; }
+.reset-password-page .auth-logo { position: relative; z-index: 1; text-align: center; color: #fff; }
+.reset-password-page .auth-logo h1 { font-family: 'Plus Jakarta Sans', sans-serif; font-size: clamp(2rem, 5vw, 2.65rem); font-weight: 900; letter-spacing: -.06em; line-height: 1.05; text-shadow: 0 2px 18px rgba(0,0,0,.16); }
+.reset-password-page .auth-logo p { margin-top: .45rem; color: rgba(255,255,255,.82); font-size: .95rem; }
+.reset-password-page .reset-card { position: relative; z-index: 1; width: min(100%, 460px); padding: 2.25rem; background: rgba(244,252,248,.96); border: 1px solid rgba(255,255,255,.72); box-shadow: 0 24px 70px rgba(2,30,28,.24); }
+.reset-password-page .reset-card h2 { margin-bottom: 1.35rem; }
+.reset-password-page .reset-card .field label { display: block; margin: 0 0 .45rem .25rem; color: #315c49; font-size: .8rem; font-weight: 700; }
+.reset-password-page .reset-card .field input { padding-left: 1rem; background: #fff; border-color: #b9d8c7; }
+.reset-password-page .reset-card .field input:focus { border-color: #159455; background: #fff; }
+.reset-password-page .reset-card .alert-error { color: #9f2635; background: #fff0f1; border-color: #f2bdc3; }
 @media (max-width: 640px) {
-  .verify-page .auth-bg { padding: 2rem 1rem; }
-  .verify-layout { grid-template-columns: 1fr; gap: 1.5rem; max-width: 460px; }
-  .verify-brand { text-align: center; }
-  .verify-brand h1 { font-size: 2.3rem; }
+  .verify-page .auth-bg { padding: 1.5rem 1rem; }
+  .verify-layout { gap: 1rem; max-width: 460px; }
+  .verify-brand h1 { font-size: 2.2rem; }
   .verify-brand p { margin-top: .35rem; }
   .verify-card { padding: 2rem 1.5rem; border-radius: 22px; }
+  .reset-password-page .reset-card { padding: 2rem 1.5rem; border-radius: 22px; }
 }
 
 @media (max-width: 520px) {

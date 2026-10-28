@@ -1,10 +1,12 @@
 <?php
 require_once __DIR__ . '/../middleware/resident_auth.php';
 require_once __DIR__ . '/../includes/helpers.php';
+require_once __DIR__ . '/../includes/dispute_helpers.php';
 $sid = (int)($_GET['sid'] ?? 0);
 $db = get_db();
+$disputeColumns = ensure_dispute_schema($db);
 $uid = (int)$_SESSION['user_id'];
-$disputeHasUserId = (bool)$db->query("SHOW COLUMNS FROM disputes LIKE 'user_id'")->fetch();
+$disputeHasUserId = in_array('user_id', $disputeColumns, true);
 $backUrl = $_SESSION['role'] === 'leader' ? '/disbasura/leader/schedules.php' : '/disbasura/resident/dashboard.php';
 $schedStmt = $db->prepare('SELECT * FROM schedules WHERE id=?');
 $schedStmt->execute([$sid]);
@@ -25,11 +27,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $sched && $in_sitio) {
             if (isset($_FILES['dispute_photo']) && ($_FILES['dispute_photo']['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_OK) {
                 $fname = save_upload($_FILES['dispute_photo'], "dispute_{$sid}_{$uid}");
             }
-            if ($disputeHasUserId) {
-                $db->prepare('INSERT INTO disputes (schedule_id,user_id,proof_photo,description) VALUES (?,?,?,?)')->execute([$sid,$uid,$fname,$note]);
-            } else {
-                $db->prepare('INSERT INTO disputes (schedule_id,proof_photo,description) VALUES (?,?,?)')->execute([$sid,$fname,$note]);
+            $insertData = ['schedule_id' => $sid];
+            foreach (['user_id', 'resident_id'] as $residentColumn) {
+                if (in_array($residentColumn, $disputeColumns, true)) $insertData[$residentColumn] = $uid;
             }
+            foreach (['proof_photo', 'photo'] as $photoColumn) {
+                if (in_array($photoColumn, $disputeColumns, true)) $insertData[$photoColumn] = $fname;
+            }
+            foreach (['description', 'note'] as $noteColumn) {
+                if (in_array($noteColumn, $disputeColumns, true)) $insertData[$noteColumn] = $note;
+            }
+            $insertColumns = array_keys($insertData);
+            $quotedColumns = array_map(static fn($column) => '`' . $column . '`', $insertColumns);
+            $placeholders = implode(',', array_fill(0, count($insertColumns), '?'));
+            $db->prepare('INSERT INTO disputes (' . implode(',', $quotedColumns) . ') VALUES (' . $placeholders . ')')
+                ->execute(array_values($insertData));
             $db->prepare("UPDATE schedules SET status='disputed' WHERE id=?")->execute([$sid]);
             notify_all_admins($db, "Dispute filed by {$_SESSION['full_name']} ({$_SESSION['role']}) for {$sched['sitio']} schedule. Review needed.");
             header('Location: '.$backUrl); exit;

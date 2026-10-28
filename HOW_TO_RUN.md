@@ -33,6 +33,18 @@
 3. Set the sender name to the one approved for your Semaphore account. SMS alerts are sent when schedules or announcements are published and when a collection is completed. Resident phone numbers saved at sign-up are used as SMS destinations.
 4. Without a valid API key, in-app notifications continue to work and SMS delivery remains disabled.
 
+## GPS ROUTE HISTORY AND FRESHNESS
+- Collector GPS updates are sampled into route history about every 30 seconds.
+- Tracker pages mark positions stale after 2 minutes and hide stale coordinates from the map.
+- Admins can review saved routes from GPS Route History. Residents and sitio leaders see only collectors assigned to their own sitio.
+- If the server connection drops while the collector dashboard remains open, the browser queues GPS history locally for up to 24 hours and syncs it when connected again. Offline points are history only; they are not live positions.
+
+## QR PH AND CASH PAYMENTS
+QR Ph submissions require a transaction reference and receipt image. A Sitio Leader checks the payment in Review Payments and marks it paid or rejected. Cash payments are recorded for manual review.
+
+## DATABASE AND PHOTO BACKUPS
+Run powershell -ExecutionPolicy Bypass -File .\tools\backup-disbasura.ps1 to create a timestamped database-and-uploads archive in your Documents folder, outside the website. To run it regularly, schedule the same command with Windows Task Scheduler. Protect the archives because they contain system data and photos.
+
 ## CONTACT EMAIL VERIFICATION AND ADMIN REPLIES
 1. Install the mail dependency once from the project folder: `composer install`.
 2. Copy `config/mail.local.example.php` to `config/mail.local.php`.

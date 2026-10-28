@@ -16,13 +16,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['review_payment'])) {
     $stmt->execute([$pid, $sitio]);
     $payment = $stmt->fetch();
     if ($payment) {
-        $db->prepare("UPDATE pickup_payments SET status=?,admin_note=?,reviewed_by=?,reviewed_by_role='leader',reviewed_at=NOW() WHERE id=? AND status='pending'")
-            ->execute([$decision, trim($_POST['leader_note'] ?? ''), $uid, $pid]);
+        $reviewUpdate = $db->prepare("UPDATE pickup_payments SET status=?,admin_note=?,reviewed_by=?,reviewed_by_role='leader',reviewed_at=NOW() WHERE id=? AND status='pending'");
+        $reviewUpdate->execute([$decision, trim($_POST['leader_note'] ?? ''), $uid, $pid]);
         $note = trim($_POST['leader_note'] ?? '');
         $text = $decision === 'paid'
             ? 'Your special pickup payment was verified by your Sitio Leader. Admin can now continue processing your request.'
             : 'Your special pickup payment was not verified. Please correct the payment and submit it again.'.($note !== '' ? ' Note: '.$note : '');
         notify_user($db, (int)$payment['resident_id'], $text);
+        if ($decision === 'paid' && $reviewUpdate->rowCount() > 0) {
+            notify_all_admins(
+                $db,
+                "Payment #{$pid} for special pickup request #{$payment['request_id']} in {$sitio} was verified by the Sitio Leader. It is ready for collector assignment.",
+                'Pickup payment verified — assign collector'
+            );
+        }
         log_activity($uid, $decision === 'paid' ? 'Verified Pickup Payment' : 'Rejected Pickup Payment', 'Payment #'.$pid.' for request #'.$payment['request_id'].' in '.$sitio, 'leader');
         $message = $decision === 'paid' ? 'Payment verified and resident notified.' : 'Payment rejected and resident notified.';
     } else {
@@ -40,7 +47,7 @@ body{background:var(--bg-page);padding:1.5rem}.wrap{max-width:950px;margin:auto}
 <div class="head"><a class="back" href="/disbasura/leader/dashboard.php">← Dashboard</a><h1>Payment Review · <?= e($sitio) ?></h1><a class="btn-approve" style="margin-left:auto;text-decoration:none" href="/disbasura/leader/requests.php">View Requests</a></div>
 <?php if($message): ?><div class="notice" role="status"><?= e($message) ?></div><?php endif; ?>
 <p class="muted">You can review payments only for residents in your assigned sitio. Pending submissions: <strong><?= $pending ?></strong>.</p>
-<?php if(!$payments): ?><div class="panel empty">No payments submitted for this sitio yet.</div><?php else: foreach($payments as $p): ?><article class="panel card"><div class="top"><div><strong><?= e($p['full_name']) ?></strong> · Request #<?= (int)$p['request_id'] ?><div class="muted"><?= e($p['waste_type']) ?> · <?= e(fmt_date($p['preferred_date'])) ?> · <strong>₱<?= number_format((float)$p['amount'],2) ?></strong><br><?= $p['method']==='qrph'?'QR Ph / e-wallet':'Cash at barangay office' ?><?= $p['reference_number'] ? ' · Reference: '.e($p['reference_number']) : '' ?><br>Submitted <?= e($p['created_at']) ?></div>
+<?php if(!$payments): ?><div class="panel empty">No payments submitted for this sitio yet.</div><?php else: foreach($payments as $p): ?><article class="panel card"><div class="top"><div><strong><?= e($p['full_name']) ?></strong> · Request #<?= (int)$p['request_id'] ?><div class="muted"><?= e($p['waste_type']) ?> · <?= e(fmt_date($p['preferred_date'])) ?> · <strong>₱<?= number_format((float)$p['amount'],2) ?></strong><br><?= $p['method']==='qrph'?'QR Ph / e-wallet':($p['method']==='cash'?'Cash at barangay office':'Other e-wallet (manual review)') ?><?= $p['reference_number'] ? ' · Reference: '.e($p['reference_number']) : '' ?><br>Submitted <?= e($p['created_at']) ?></div>
 <?php if($p['proof_photo']): ?><a href="/disbasura/uploads/<?= e($p['proof_photo']) ?>" target="_blank" rel="noopener" style="color:var(--green-main);font-weight:700">View payment proof</a><?php endif; ?>
 <?php if($p['admin_note']): ?><div class="muted">Previous review note: <?= e($p['admin_note']) ?></div><?php endif; ?></div><span class="badge <?= e($p['status']) ?>"><?= strtoupper(e($p['status'])) ?></span></div>
 <?php if($p['status']==='pending'): ?><form method="POST" class="actions"><input type="hidden" name="payment_id" value="<?= (int)$p['id'] ?>"><input type="hidden" name="review_payment" value="1"><input name="leader_note" maxlength="500" placeholder="Optional note to resident"><button class="btn-approve" name="decision" value="paid">Mark Paid</button><button class="btn-reject" name="decision" value="rejected">Reject</button></form><?php endif; ?></article><?php endforeach; endif; ?>

@@ -27,6 +27,8 @@ function render_admin_header(string $active = '', int $unread = 0, string $title
             '<path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/>'],
         'tracker'       => ['Truck Tracker',  '/disbasura/admin/tracker.php',
             '<circle cx="12" cy="12" r="10"/><circle cx="12" cy="10" r="3"/>'],
+        'gps_history'   => ['GPS Route History', '/disbasura/admin/tracking-history.php',
+            '<path d="M3 12a9 9 0 1 0 3-6.7"/><polyline points="3 3 3 9 9 9"/><path d="M12 7v5l3 2"/>'],
         'activity'      => ['Activity Log',   '/disbasura/admin/activity-log.php',
             '<path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>'],
         'reports'       => ['Reports',        '/disbasura/admin/reports.php',

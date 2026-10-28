@@ -390,7 +390,11 @@ CREATE TABLE IF NOT EXISTS tracking_history (
     collector_id INT NOT NULL,
     latitude     DECIMAL(10,8) NOT NULL,
     longitude    DECIMAL(11,8) NOT NULL,
+    accuracy     DECIMAL(7,2) NULL,
+    client_point_id CHAR(36) NULL,
     `timestamp`  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_tracking_history_point (collector_id, client_point_id),
+    KEY idx_tracking_history_time (`timestamp`),
     FOREIGN KEY (collector_id) REFERENCES collectors(id) ON DELETE CASCADE
 );
 
