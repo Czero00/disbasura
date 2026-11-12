@@ -22,16 +22,17 @@
 3. Fill in your Name, Username, Email, Password
 4. Click Create Admin Account
 
-## SMS ALERT SETUP (OPTIONAL PROVIDER CREDENTIALS REQUIRED)
-1. Get a Semaphore API key and register the sender name in your Semaphore account.
-2. Create `config/local.php` (this file is ignored by Git) with:
+## SMS ALERT SETUP (OPTIONAL; SEMAPHORE APPROVAL AND CREDITS REQUIRED)
+1. Verify your Semaphore email and wait for the account to be approved for sending. Add credits before trying a live SMS. Semaphore's account and credit status are shown in its dashboard.
+2. Get the API key from the Semaphore dashboard. Use a sender name only after it is registered and approved; otherwise leave it empty to use the account's default sender.
+3. Add the settings to `config/local.php` (this file is ignored by Git) with:
    ```php
    <?php
    define('SEMAPHORE_API_KEY', 'paste-your-api-key-here');
-   define('SEMAPHORE_SENDER_NAME', 'DisBasura');
+   define('SEMAPHORE_SENDER_NAME', ''); // or your approved sender name
    ```
-3. Set the sender name to the one approved for your Semaphore account. SMS alerts are sent when schedules or announcements are published and when a collection is completed. Resident phone numbers saved at sign-up are used as SMS destinations.
-4. Without a valid API key, in-app notifications continue to work and SMS delivery remains disabled.
+4. SMS alerts are triggered by the existing announcement and collection-completion notification flows. Resident phone numbers saved at sign-up are used as SMS destinations. Use your own phone number for the first test.
+5. Without a valid API key, in-app notifications continue to work and SMS delivery remains disabled. Do not commit or share `config/local.php` or your API key.
 
 ## GPS ROUTE HISTORY AND FRESHNESS
 - Collector GPS updates are sampled into route history about every 30 seconds.

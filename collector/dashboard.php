@@ -99,7 +99,7 @@ $isDark = (int)($collector['dark_mode'] ?? 0);
       </button>
     </form>
     <!-- Sign out -->
-    <a href="/disbasura/logout.php?role=collector" class="col-signout">
+    <a href="/disbasura/logout.php?role=collector" class="col-signout col-logout">
       <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
         <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/>
         <polyline points="16 17 21 12 16 7"/>
@@ -123,7 +123,11 @@ $isDark = (int)($collector['dark_mode'] ?? 0);
       <?php else: ?>
         <span style="display:inline-flex;align-items:center;justify-content:center;width:46px;height:46px;border-radius:50%;background:rgba(255,255,255,.15);border:2px solid rgba(255,255,255,.25);font-size:1.2rem;font-weight:800;flex-shrink:0"><?= strtoupper(substr($collector['full_name'],0,1)) ?></span>
       <?php endif; ?>
-      <?= htmlspecialchars($collector['full_name']) ?> | <?= htmlspecialchars($collector['sitio']) ?>
+      <span class="col-hero-identity">
+        <span class="col-hero-person"><?= htmlspecialchars($collector['full_name']) ?></span>
+        <span class="col-hero-separator">|</span>
+        <span class="col-hero-location"><?= htmlspecialchars($collector['sitio']) ?></span>
+      </span>
     </a>
   </h1>
   <div class="col-hero-badges">

@@ -4,12 +4,20 @@ require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/../includes/contact_validation.php';
 require_once __DIR__ . '/../includes/mailer.php';
 
-if (isset($_SESSION['admin_id']) && $_SESSION['admin_role'] === 'admin') {
-    header('Location: /disbasura/admin/dashboard.php'); exit;
-}
-
 $db = get_db();
 try { $db->exec("ALTER TABLE administrators ADD COLUMN IF NOT EXISTS phone VARCHAR(50) NULL"); } catch(Exception $e){}
+$adminSessionId = (int)($_SESSION['admin_id'] ?? 0);
+if ($adminSessionId > 0 && ($_SESSION['admin_role'] ?? '') === 'admin') {
+    $sessionCheck = $db->prepare('SELECT id FROM administrators WHERE id=? LIMIT 1');
+    $sessionCheck->execute([$adminSessionId]);
+    if ($sessionCheck->fetchColumn()) {
+        header('Location: /disbasura/admin/dashboard.php'); exit;
+    }
+
+    // A reset may have removed this account while its browser session remained active.
+    unset($_SESSION['admin_id'], $_SESSION['admin_role'], $_SESSION['admin_name'], $_SESSION['admin_user']);
+    session_regenerate_id(true);
+}
 $no_admin = !$db->query("SELECT id FROM administrators LIMIT 1")->fetch();
 $isSetupRoute = basename($_SERVER['SCRIPT_NAME'] ?? '') === 'setup.php';
 if ($no_admin && !$isSetupRoute) { header('Location: /disbasura/admin/setup.php'); exit; }

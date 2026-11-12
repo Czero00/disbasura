@@ -383,11 +383,49 @@ html, body {
 
 /* ── Responsive ── */
 @media (max-width: 600px) {
-  .col-hero-name  { font-size:1.4rem; }
-  .avail-btns     { flex-direction:column; }
-  .stats-row      { gap:.5rem; }
+  .col-navbar { height:56px; padding:0 .85rem; gap:.6rem; }
+  .col-nav-brand { gap:.45rem; min-width:0; }
+  .col-nav-brand svg { width:30px; height:30px; }
+  .col-nav-brand-text { font-size:.96rem; }
+  .col-nav-brand-sub { font-size:.6rem; }
+  .col-navbar > div { gap:.65rem !important; }
+  .col-navbar > div > a,
+  .col-navbar > div > form { flex:0 0 auto; }
+  .col-navbar > div > a.col-signout { width:38px; height:38px; padding:0 !important; justify-content:center; }
+  .col-navbar .dark-toggle-btn { width:38px; height:38px; padding:0; justify-content:center; }
+  .col-navbar .dark-toggle-btn span { display:none; }
+  .col-navbar .col-logout { width:38px; height:38px; padding:0; justify-content:center; font-size:0; }
+
+  .col-hero { padding:76px 1rem 1.15rem; text-align:left; }
+  .col-hero-name { font-size:1.25rem; line-height:1.2; margin:0 0 .85rem; }
+  .col-hero-name > a { display:flex !important; align-items:center !important; justify-content:flex-start; gap:.7rem !important; }
+  .col-hero-identity { display:flex; min-width:0; flex-direction:column; align-items:flex-start; gap:.12rem; }
+  .col-hero-person { overflow-wrap:anywhere; }
+  .col-hero-separator { display:none; }
+  .col-hero-location { font-size:.78rem; font-weight:500; color:rgba(255,255,255,.58); }
+  .col-hero-badges { justify-content:flex-start; gap:.4rem; }
+
+  .col-shell { padding:0 .85rem 2.5rem; }
+  .avail-card { padding:1rem; }
+  .avail-label { margin-bottom:.75rem; }
+  .avail-btns { display:grid; grid-template-columns:1fr 1fr; gap:.5rem; }
+  .avail-btn { min-width:0; padding:.68rem .35rem; font-size:.76rem; }
+  .avail-btn:first-child { grid-column:1 / -1; }
+
+  .gps-card { display:grid; grid-template-columns:42px minmax(0,1fr); gap:.7rem; padding:1rem; }
+  .gps-info { grid-column:2; }
+  .gps-title { font-size:.85rem; }
+  .gps-desc { font-size:.74rem; }
+  .gps-toggle { grid-column:1 / -1; width:100%; padding:.7rem 1rem; }
+
+  .stats-row { gap:.45rem; }
+  .stat-c { padding:.8rem .35rem; gap:.35rem; }
+  .stat-c-icon { width:32px; height:32px; }
+  .stat-c-val { font-size:1.4rem; }
+  .stat-c-label { font-size:.66rem; }
   .item-row       { flex-direction:column;gap:.6rem; }
   .row-left       { flex-direction:row;flex-wrap:wrap;min-width:unset; }
+  .panel-card-header { padding:.9rem 1rem; gap:.6rem; }
 }
 
 /* ── Nav badge (red pill) ── */

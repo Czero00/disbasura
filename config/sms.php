@@ -15,39 +15,76 @@ if (!defined('SMS_SENDER_NAME')) define('SMS_SENDER_NAME', $smsSender);
 if (!defined('SMS_ENABLED')) define('SMS_ENABLED', SMS_API_KEY !== '' && SMS_API_KEY !== 'YOUR_SEMAPHORE_API_KEY_HERE');
 
 function send_sms(string $phone, string $message): bool {
-    if (!SMS_ENABLED) return false;
+    if (!SMS_ENABLED || !function_exists('curl_init')) return false;
 
-    // Clean phone number — convert 09XX to 639XX
+    // Normalize Philippine mobile numbers to Semaphore's 63XXXXXXXXXX format.
     $phone = preg_replace('/\D/', '', $phone);
     if (strlen($phone) === 11 && $phone[0] === '0') {
         $phone = '63' . substr($phone, 1);
+    } elseif (strlen($phone) === 10 && $phone[0] === '9') {
+        $phone = '63' . $phone;
+    }
+    if (!preg_match('/^639\d{9}$/', $phone) || trim($message) === '') return false;
+
+    $status = 'failed';
+    $accepted = false;
+    $ch = curl_init('https://api.semaphore.co/api/v4/messages');
+    if ($ch === false) return false;
+
+    $payload = [
+        'apikey'  => SMS_API_KEY,
+        'number'  => $phone,
+        'message' => $message,
+    ];
+    // Semaphore uses the registered default sender if sendername is omitted.
+    // Only send an explicit sender name when one is configured locally.
+    if (trim(SMS_SENDER_NAME) !== '') {
+        $payload['sendername'] = trim(SMS_SENDER_NAME);
     }
 
     try {
-        $ch = curl_init('https://api.semaphore.co/api/v4/messages');
         curl_setopt_array($ch, [
             CURLOPT_POST           => true,
             CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_POSTFIELDS     => http_build_query([
-                'apikey'      => SMS_API_KEY,
-                'number'      => $phone,
-                'message'     => $message,
-                'sendername'  => SMS_SENDER_NAME,
-            ]),
+            CURLOPT_POSTFIELDS     => http_build_query($payload),
+            CURLOPT_CONNECTTIMEOUT => 10,
+            CURLOPT_TIMEOUT        => 20,
         ]);
         $response = curl_exec($ch);
-        $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $curlError = curl_error($ch);
         curl_close($ch);
 
-        // Log it
-        $db = get_db();
-        $db->prepare("INSERT INTO sms_log (phone,message,status) VALUES (?,?,?)")
-           ->execute([$phone, $message, $http_code === 200 ? 'sent' : 'failed']);
-
-        return $http_code === 200;
-    } catch (Exception $e) {
-        return false;
+        if ($response !== false && $httpCode >= 200 && $httpCode < 300) {
+            $result = json_decode($response, true);
+            // Semaphore returns an array of per-message results for this endpoint.
+            if (is_array($result) && isset($result[0]) && is_array($result[0])) {
+                $providerStatus = strtolower((string) ($result[0]['status'] ?? ''));
+                if (in_array($providerStatus, ['queued', 'pending'], true)) {
+                    $status = 'pending';
+                    $accepted = true;
+                } elseif ($providerStatus === 'sent') {
+                    $status = 'sent';
+                    $accepted = true;
+                }
+            }
+        } elseif ($curlError !== '') {
+            error_log('Semaphore SMS request failed: ' . $curlError);
+        }
+    } catch (Throwable $e) {
+        error_log('Semaphore SMS request failed: ' . $e->getMessage());
+        if (is_resource($ch) || $ch instanceof CurlHandle) curl_close($ch);
     }
+
+    // Logging must not turn a successfully accepted provider request into a failure.
+    try {
+        get_db()->prepare("INSERT INTO sms_log (phone,message,status) VALUES (?,?,?)")
+            ->execute([$phone, $message, $status]);
+    } catch (Throwable $e) {
+        error_log('Could not write SMS log: ' . $e->getMessage());
+    }
+
+    return $accepted;
 }
 
 function send_sms_to_sitio(string $sitio, string $message): void {
