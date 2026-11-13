@@ -2,11 +2,15 @@
 require_once __DIR__ . '/../middleware/resident_auth.php';
 require_once __DIR__ . '/../includes/helpers.php';
 require_once __DIR__ . '/../includes/payment_helpers.php';
+require_once __DIR__ . '/../includes/request_feedback.php';
+require_once __DIR__ . '/../includes/request_dispute_helpers.php';
 require_once __DIR__ . '/../config/sms.php';
 if ($_SESSION['role'] === 'leader') { header('Location: /disbasura/leader/dashboard.php'); exit; }
 
 $db    = get_db();
 ensure_pickup_payment_tables($db);
+ensure_request_feedback_table($db);
+ensure_request_disputes_table($db);
 $paymentSettings = get_pickup_payment_settings($db);
 $uid   = $_SESSION['user_id'];
 $sitio = $_SESSION['sitio'] ?? '';
@@ -143,6 +147,13 @@ if ($feedbackUserColumn) {
     $my_feedback_ids = $db->query('SELECT schedule_id FROM feedback');
 }
 $my_feedback_ids = array_column($my_feedback_ids->fetchAll(),'schedule_id');
+$my_pickup_feedback = $db->prepare('SELECT request_id FROM pickup_request_feedback WHERE resident_id=?');
+$my_pickup_feedback->execute([$uid]);
+$my_pickup_feedback_ids = array_map('intval', array_column($my_pickup_feedback->fetchAll(), 'request_id'));
+$my_pickup_disputes_stmt = $db->prepare('SELECT request_id,status FROM pickup_request_disputes WHERE resident_id=?');
+$my_pickup_disputes_stmt->execute([$uid]);
+$my_pickup_disputes = [];
+foreach ($my_pickup_disputes_stmt->fetchAll() as $pickupDispute) $my_pickup_disputes[(int)$pickupDispute['request_id']] = $pickupDispute['status'];
 
 $unread = get_unread_count($uid);
 
@@ -198,7 +209,8 @@ $dark = $prefs['dark_mode'] ? 'dark' : '';
     .sidebar-nav a.active{background:#e8f5ee;color:#1a3a2a}
     .sidebar-nav a .nav-icon{font-size:1rem;width:22px;text-align:center;flex-shrink:0}
     .notif-badge{position:absolute;right:.75rem;background:#e74c3c;color:#fff;border-radius:20px;font-size:.62rem;padding:.1rem .4rem;font-weight:800;line-height:1.4}
-    .sidebar-bottom{padding:.65rem .85rem;border-top:1px solid #e4ede8}
+    .sidebar-bottom{position:sticky;bottom:0;z-index:20;flex-shrink:0;padding:.65rem .85rem calc(.65rem + env(safe-area-inset-bottom));border-top:1px solid #e4ede8;background:#fff}
+    html.dark .sidebar-bottom{background:var(--bg-sidebar);border-color:var(--border)}
     .sb-bottom-row{display:flex;align-items:center;gap:.4rem;margin-bottom:.45rem}
     .sb-icon-btn{display:inline-flex;align-items:center;justify-content:center;gap:.3rem;padding:.4rem .7rem;border:1.5px solid #d4e6db;border-radius:8px;background:transparent;cursor:pointer;font-size:.75rem;font-weight:600;color:#4a7a5a;font-family:inherit;transition:all .16s;white-space:nowrap;flex:1}
     .sb-icon-btn:hover{background:#f0faf4;border-color:#2d8653;color:#1a3a2a}
@@ -206,8 +218,10 @@ $dark = $prefs['dark_mode'] ? 'dark' : '';
     html.dark .sb-icon-btn:hover{background:rgba(45,134,83,.15);border-color:rgba(76,175,128,.4);color:#e2f0e8}
     .sb-lang-select{flex:0 0 auto;border:1.5px solid #d4e6db;border-radius:8px;padding:.4rem .45rem;font-size:.75rem;background:transparent;color:#4a7a5a;font-family:inherit;cursor:pointer;max-width:72px}
     html.dark .sb-lang-select{border-color:rgba(255,255,255,.15);background:transparent;color:#8baa96}
-    .signout-btn{display:flex;align-items:center;justify-content:center;gap:.4rem;width:100%;padding:.48rem;border:1.5px solid rgba(224,82,82,.3);border-radius:8px;background:transparent;cursor:pointer;font-size:.78rem;font-weight:600;color:#c0392b;font-family:inherit;text-decoration:none;transition:all .16s}
+    .signout-btn{position:relative;z-index:1;display:flex;align-items:center;justify-content:center;gap:.4rem;width:100%;min-height:42px;padding:.55rem;border:1.5px solid rgba(192,57,43,.38);border-radius:8px;background:#fff6f5;cursor:pointer;font-size:.8rem;font-weight:700;color:#a93226;font-family:inherit;text-decoration:none;transition:all .16s;white-space:nowrap}
     .signout-btn:hover{background:#fdecea;border-color:var(--red);text-decoration:none}
+    html.dark .signout-btn{background:rgba(192,57,43,.12);border-color:rgba(255,130,118,.45);color:#ff9f96}
+    html.dark .signout-btn:hover{background:rgba(192,57,43,.22)}
 
     /* ── Main content ── */
     .res-main{flex:1;padding:1.75rem 2rem;overflow-y:auto;min-width:0}
@@ -241,6 +255,7 @@ $dark = $prefs['dark_mode'] ? 'dark' : '';
     .req-meta strong{font-size:.85rem;font-weight:700;color:#1a3a2a;display:block}
     html.dark .req-meta strong{color:var(--text-dark)}
     .req-meta span{font-size:.75rem;color:#7aab8a}
+    .req-actions{min-width:0}
 
     /* ── Announcement ── */
     .ann-item{padding:.7rem 1.25rem;border-bottom:1px solid #f0f5f2}
@@ -258,9 +273,16 @@ $dark = $prefs['dark_mode'] ? 'dark' : '';
     .res-mob-overlay.show{display:block}
     @media(max-width:768px){
       .res-ham-btn{display:flex!important}
-      .res-sidebar{position:fixed!important;left:-260px;top:0;height:100vh!important;z-index:200;transition:left .3s cubic-bezier(.4,0,.2,1);box-shadow:none;overflow-y:auto;width:240px}
+      .res-sidebar{position:fixed!important;left:-260px;top:0;height:100vh!important;height:100dvh!important;max-height:100dvh;z-index:200;transition:left .3s cubic-bezier(.4,0,.2,1);box-shadow:none;overflow-y:auto;width:240px}
       .res-sidebar.open{left:0!important;box-shadow:6px 0 30px rgba(0,0,0,.4)}
       .res-main{width:100%!important;padding:1.25rem}
+      .req-item{align-items:flex-start}
+      .req-actions{width:100%;flex:1 1 100%;flex-shrink:1!important;align-items:stretch!important}
+      .pickup-payment-form{display:grid!important;grid-template-columns:minmax(0,1fr);width:100%;min-width:0;gap:.6rem!important}
+      .pickup-payment-form select,.pickup-payment-form input,.pickup-payment-form button{box-sizing:border-box;width:100%!important;max-width:100%!important;min-width:0;min-height:44px}
+      .payment-qr-fields{width:100%;flex-direction:column;align-items:stretch!important;gap:.55rem!important}
+      .payment-qr-fields input[type=file]{padding:.5rem;background:var(--bg-card);border-radius:8px}
+      .pickup-payment-form .btn-approve{display:block;min-height:46px}
     }
 
     @keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
@@ -384,6 +406,11 @@ $dark = $prefs['dark_mode'] ? 'dark' : '';
 
     <!-- Bottom controls -->
     <div class="sidebar-bottom">
+      <!-- Keep sign out before the preferences so it remains visible on short screens. -->
+      <a href="/disbasura/logout.php?role=resident" class="signout-btn">
+        <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        <?= $lang['sign_out'] ?>
+      </a>
       <!-- Row: dark mode + language side by side -->
       <div class="sb-bottom-row">
         <form method="POST" style="display:contents">
@@ -400,11 +427,6 @@ $dark = $prefs['dark_mode'] ? 'dark' : '';
           </select>
         </form>
       </div>
-      <!-- Sign out -->
-      <a href="/disbasura/logout.php?role=resident" class="signout-btn">
-        <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-        <?= $lang['sign_out'] ?>
-      </a>
     </div>
   </aside>
 
@@ -541,7 +563,7 @@ $dark = $prefs['dark_mode'] ? 'dark' : '';
           <?php if($r['collector_name']): ?><span>🚛 <?= e($r['collector_name']) ?></span><?php endif; ?>
           <?php if(!empty($r['note'])): ?><span>💬 <?= e($r['note']) ?></span><?php endif; ?>
         </div>
-        <div style="display:flex;flex-wrap:wrap;align-items:center;gap:.4rem;flex-shrink:0">
+        <div class="req-actions" style="display:flex;flex-wrap:wrap;align-items:center;gap:.4rem;flex-shrink:0">
           <span class="badge <?= $r['status'] ?>"><?= e($r['status']) ?></span>
           <?php if (is_pickup_payment_required($paymentSettings) && in_array($r['status'], ['approved','assigned','completed'], true)): ?>
             <?php if ($pickupPayment && $pickupPayment['status']==='paid'): ?>
@@ -549,7 +571,7 @@ $dark = $prefs['dark_mode'] ? 'dark' : '';
             <?php elseif ($pickupPayment && $pickupPayment['status']==='pending'): ?>
               <span class="badge pending">Payment pending verification</span>
             <?php elseif ($r['status']==='approved'): ?>
-              <form method="POST" enctype="multipart/form-data" style="display:flex;flex-wrap:wrap;gap:.35rem;align-items:center">
+              <form method="POST" enctype="multipart/form-data" class="pickup-payment-form" style="display:flex;flex-wrap:wrap;gap:.35rem;align-items:center">
                 <input type="hidden" name="request_id" value="<?= (int)$r['id'] ?>"><input type="hidden" name="submit_pickup_payment" value="1">
                 <select name="payment_method" onchange="this.form.querySelector('.payment-qr-fields').style.display=this.value==='qrph'?'flex':'none'" style="font:inherit;font-size:.72rem;border:1px solid #cfe2d5;border-radius:8px;padding:.35rem">
                   <?php if (!empty($paymentSettings['allow_qrph'])): ?><option value="qrph">QR Ph (manual review)</option><?php endif; ?>
@@ -575,6 +597,18 @@ $dark = $prefs['dark_mode'] ? 'dark' : '';
           <?php endif; ?>
           <?php if($r['status']==='completed'): ?>
             <?php $has_req_proof = !empty($r['resident_proof_photo']); ?>
+            <?php if (isset($my_pickup_disputes[(int)$r['id']])): ?>
+              <span style="font-size:.72rem;color:<?= $my_pickup_disputes[(int)$r['id']]==='pending'?'#916300':'#52627a' ?>;font-weight:700;background:<?= $my_pickup_disputes[(int)$r['id']]==='pending'?'#fff4d9':'#eef2f6' ?>;padding:.25rem .65rem;border-radius:20px;border:1px solid <?= $my_pickup_disputes[(int)$r['id']]==='pending'?'#f0d58b':'#d6dde5' ?>">⚠️ <?= $my_pickup_disputes[(int)$r['id']]==='pending'?'Dispute pending review':'Dispute reviewed' ?></span>
+            <?php else: ?>
+              <a href="/disbasura/resident/dispute.php?rid=<?= (int)$r['id'] ?>" style="font-size:.75rem;background:#fff0ed;color:#a52a1a;border:1px solid #efb5aa;border-radius:20px;padding:.3rem .8rem;text-decoration:none;font-weight:800">⚠️ Report Issue</a>
+            <?php endif; ?>
+            <?php if (!empty($r['collector_id'])): ?>
+              <?php if (in_array((int)$r['id'], $my_pickup_feedback_ids, true)): ?>
+                <span style="font-size:.72rem;color:#f5a623;font-weight:700;background:#fff3e0;padding:.25rem .65rem;border-radius:20px;border:1px solid #fdd9a0">⭐ Rated</span>
+              <?php else: ?>
+                <button type="button" onclick="openFeedback(<?= (int)$r['id'] ?>,'request')" style="font-size:.75rem;background:#fff3e0;color:#b87900;border:1px solid #fdd9a0;border-radius:20px;padding:.3rem .8rem;cursor:pointer;font-family:inherit;font-weight:700">⭐ Rate Collector</button>
+              <?php endif; ?>
+            <?php endif; ?>
             <?php if(!$has_req_proof): ?>
             <button onclick="openReqProof(<?= $r['id'] ?>,'<?= e($r['waste_type']) ?> — <?= e($r['sitio']) ?>')"
               style="font-size:.75rem;background:#1e6b3c;color:#fff;border:none;border-radius:20px;padding:.3rem .8rem;cursor:pointer;font-family:inherit;font-weight:700;display:inline-flex;align-items:center;gap:.3rem">
@@ -637,6 +671,7 @@ $dark = $prefs['dark_mode'] ? 'dark' : '';
     <h3 style="font-family:'Plus Jakarta Sans',sans-serif;font-size:1.05rem;font-weight:800;margin-bottom:.5rem">⭐ Rate this Collection</h3>
     <p style="font-size:.83rem;color:#7aab8a;margin-bottom:1.25rem">How was the garbage collection service?</p>
     <input type="hidden" id="fb_schedule_id" value="">
+    <input type="hidden" id="fb_request_id" value="">
     <div style="display:flex;gap:.25rem;justify-content:center;margin-bottom:1.25rem" id="starRow">
       <?php for($i=1;$i<=5;$i++): ?>
       <button class="star-btn" data-val="<?= $i ?>" onclick="setRating(<?= $i ?>)">★</button>
@@ -685,8 +720,9 @@ document.getElementById('resProofForm').addEventListener('submit', function(){
 document.getElementById('resProofModal').addEventListener('click', function(e){ if(e.target===this)closeResProof(); });
 let currentRating = 0;
 const labels = ['','Poor 😞','Fair 😐','Good 🙂','Great 😊','Excellent! 🌟'];
-function openFeedback(sid){
-  document.getElementById('fb_schedule_id').value=sid;
+function openFeedback(id, type='schedule'){
+  document.getElementById('fb_schedule_id').value=type==='schedule'?id:'';
+  document.getElementById('fb_request_id').value=type==='request'?id:'';
   currentRating=0;
   document.querySelectorAll('.star-btn').forEach(b=>b.classList.remove('active'));
   document.getElementById('ratingLabel').textContent='Tap a star to rate';
@@ -702,10 +738,14 @@ function setRating(val){
 function submitFeedback(){
   if(!currentRating){ alert('Please select a star rating.'); return; }
   const sid=document.getElementById('fb_schedule_id').value;
+  const rid=document.getElementById('fb_request_id').value;
   const comment=document.getElementById('fb_comment').value;
+  const payload={rating:currentRating,comment};
+  if(rid) payload.request_id=parseInt(rid);
+  else payload.schedule_id=parseInt(sid);
   fetch('/disbasura/api/feedback.php',{
     method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({schedule_id:parseInt(sid),rating:currentRating,comment})
+    body:JSON.stringify(payload)
   }).then(r=>r.json()).then(d=>{
     if(d.ok){ closeFeedback(); location.reload(); }
     else alert(d.error||'Failed to submit.');

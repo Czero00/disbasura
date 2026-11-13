@@ -2,34 +2,56 @@
 require_once __DIR__ . '/../middleware/admin_auth.php';
 require_once __DIR__ . '/../includes/helpers.php';
 require_once __DIR__ . '/../includes/base_admin.php';
+require_once __DIR__ . '/../includes/request_feedback.php';
 $db = get_db();
+ensure_request_feedback_table($db);
+foreach ([
+    "ALTER TABLE requests ADD COLUMN IF NOT EXISTS completed_at DATETIME DEFAULT NULL",
+    "ALTER TABLE requests ADD COLUMN IF NOT EXISTS proof_photo VARCHAR(500) DEFAULT NULL",
+    "ALTER TABLE requests ADD COLUMN IF NOT EXISTS resident_proof_photo VARCHAR(500) DEFAULT NULL",
+] as $migration) { try { $db->exec($migration); } catch (Throwable $e) {} }
 
 $month  = $_GET['month'] ?? date('Y-m');
 $sitio  = $_GET['sitio'] ?? '';
 $sitios = get_sitios();
 
-$where  = "WHERE s.status='completed'";
+$where  = '';
 $params = [];
 if ($month) {
-    $where .= " AND DATE_FORMAT(s.completed_at,'%Y-%m')=?";
+    $where .= " AND DATE_FORMAT(history.completed_at,'%Y-%m')=?";
     $params[] = $month;
 }
 if ($sitio) {
-    $where .= " AND s.sitio=?";
+    $where .= " AND history.sitio=?";
     $params[] = $sitio;
 }
 
 $stmt = $db->prepare("
-    SELECT s.*,
-           c.full_name AS collector_name,
-           ROUND(AVG(f.rating),1) AS avg_rating,
-           COUNT(f.id) AS feedback_count
-    FROM schedules s
-    LEFT JOIN collectors c ON s.collector_id=c.id
-    LEFT JOIN feedback f   ON f.schedule_id=s.id
-    $where
-    GROUP BY s.id
-    ORDER BY s.completed_at DESC
+    SELECT * FROM (
+        SELECT 'schedule' AS record_type, s.id, s.sitio, s.waste_type, s.scheduled_at,
+               s.completed_at, s.collector_id, s.proof_photo, s.resident_proof_photo,
+               c.full_name AS collector_name, ROUND(AVG(f.rating),1) AS avg_rating,
+               COUNT(f.id) AS feedback_count
+        FROM schedules s
+        LEFT JOIN collectors c ON c.id=s.collector_id
+        LEFT JOIN feedback f ON f.schedule_id=s.id
+        WHERE s.status='completed'
+        GROUP BY s.id
+
+        UNION ALL
+
+        SELECT 'request' AS record_type, r.id, r.sitio, r.waste_type, r.preferred_date AS scheduled_at,
+               COALESCE(r.completed_at,r.preferred_date) AS completed_at, r.collector_id,
+               r.proof_photo, r.resident_proof_photo, c.full_name AS collector_name,
+               ROUND(AVG(rf.stars),1) AS avg_rating, COUNT(rf.id) AS feedback_count
+        FROM requests r
+        LEFT JOIN collectors c ON c.id=r.collector_id
+        LEFT JOIN pickup_request_feedback rf ON rf.request_id=r.id
+        WHERE r.status='completed'
+        GROUP BY r.id
+    ) history
+    WHERE 1=1 $where
+    ORDER BY history.completed_at DESC
 ");
 $stmt->execute($params);
 $history = $stmt->fetchAll();
@@ -78,9 +100,9 @@ render_admin_header('history', $unread, 'Collection History — DisBasura');
   <tbody>
   <?php foreach($history as $i=>$r): ?>
   <tr style="border-bottom:1px solid var(--border-light)">
-    <td style="padding:.85rem 1.1rem;color:var(--text-light);font-size:.8rem"><?= $i+1 ?></td>
+    <td style="padding:.85rem 1.1rem;color:var(--text-light);font-size:.8rem"><?= $r['record_type']==='request'?'SP-':'SCH-' ?><?= (int)$r['id'] ?></td>
     <td style="padding:.85rem 1.1rem;font-weight:600;font-size:.88rem"><?= e($r['sitio']) ?></td>
-    <td style="padding:.85rem 1.1rem;font-size:.85rem"><?= e($r['waste_type']) ?></td>
+    <td style="padding:.85rem 1.1rem;font-size:.85rem"><?= e($r['waste_type']) ?><?php if($r['record_type']==='request'): ?><small style="display:block;color:var(--text-light)">Special pickup</small><?php endif; ?></td>
     <td style="padding:.85rem 1.1rem;font-size:.82rem;color:var(--text-mid)"><?= fmt_date($r['scheduled_at']) ?></td>
     <td style="padding:.85rem 1.1rem;font-size:.82rem;color:var(--green-main);font-weight:600"><?= fmt_date($r['completed_at']) ?></td>
     <td style="padding:.85rem 1.1rem;font-size:.85rem"><?= e($r['collector_name'] ?? '—') ?></td>

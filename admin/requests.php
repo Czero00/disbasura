@@ -87,7 +87,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     } elseif (isset($_POST['complete'])) {
         $req = $db->query("SELECT * FROM requests WHERE id=$rid")->fetch();
-        $db->prepare("UPDATE requests SET status='completed' WHERE id=?")->execute([$rid]);
+        $db->prepare("UPDATE requests SET status='completed',completed_at=COALESCE(completed_at,NOW()) WHERE id=?")->execute([$rid]);
         notify_user($db,$req['resident_id'],"✅ Your pickup request has been marked as completed by admin.");
         log_activity($_SESSION['admin_id'],'Completed Request','Request #'.$rid.' - '.$req['sitio']);
     }

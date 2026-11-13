@@ -2,24 +2,58 @@
 require_once __DIR__ . '/../middleware/admin_auth.php';
 require_once __DIR__ . '/../includes/helpers.php';
 require_once __DIR__ . '/../includes/base_admin.php';
+require_once __DIR__ . '/../includes/request_feedback.php';
+require_once __DIR__ . '/../includes/request_dispute_helpers.php';
 $db = get_db();
+ensure_request_feedback_table($db);
+ensure_request_disputes_table($db);
 
 $collectors = $db->query("
     SELECT
         c.*,
-        COUNT(DISTINCT s.id)                                          AS total_assigned,
-        SUM(CASE WHEN s.status='completed' THEN 1 ELSE 0 END)        AS total_completed,
-        SUM(CASE WHEN s.status='unverified' THEN 1 ELSE 0 END)       AS total_missed,
-        COUNT(DISTINCT d.id)                                          AS total_disputes,
-        ROUND(AVG(f.rating),1)                                        AS avg_rating,
-        COUNT(DISTINCT f.id)                                          AS total_feedback,
-        CASE WHEN COUNT(DISTINCT s.id)>0
-             THEN ROUND(SUM(CASE WHEN s.status='completed' THEN 1 ELSE 0 END)/COUNT(DISTINCT s.id)*100,1)
+        COALESCE(ss.total_assigned,0)+COALESCE(rs.total_assigned,0)   AS total_assigned,
+        COALESCE(ss.total_completed,0)+COALESCE(rs.total_completed,0) AS total_completed,
+        COALESCE(ss.total_missed,0)                                   AS total_missed,
+        COALESCE(ds.total_disputes,0)                                 AS total_disputes,
+        ROUND(COALESCE(MAX(rating_summary.avg_rating),0),1)            AS avg_rating,
+        COALESCE(MAX(rating_summary.total_feedback),0)                 AS total_feedback,
+        CASE WHEN COALESCE(ss.total_assigned,0)+COALESCE(rs.total_assigned,0)>0
+             THEN ROUND((COALESCE(ss.total_completed,0)+COALESCE(rs.total_completed,0))/(COALESCE(ss.total_assigned,0)+COALESCE(rs.total_assigned,0))*100,1)
              ELSE 0 END                                               AS completion_rate
     FROM collectors c
-    LEFT JOIN schedules s  ON s.collector_id=c.id
-    LEFT JOIN disputes d   ON d.schedule_id=s.id
-    LEFT JOIN feedback f   ON f.schedule_id=s.id
+    LEFT JOIN (
+        SELECT collector_id, COUNT(*) AS total_assigned,
+               SUM(status='completed') AS total_completed,
+               SUM(status='unverified') AS total_missed
+        FROM schedules GROUP BY collector_id
+    ) ss ON ss.collector_id=c.id
+    LEFT JOIN (
+        SELECT collector_id, COUNT(*) AS total_assigned,
+               SUM(status='completed') AS total_completed
+        FROM requests WHERE collector_id IS NOT NULL GROUP BY collector_id
+    ) rs ON rs.collector_id=c.id
+    LEFT JOIN (
+        SELECT collector_id, COUNT(*) AS total_disputes
+        FROM (
+            SELECT s.collector_id, d.id
+            FROM schedules s INNER JOIN disputes d ON d.schedule_id=s.id
+            UNION ALL
+            SELECT collector_id, id FROM pickup_request_disputes WHERE collector_id IS NOT NULL
+        ) all_disputes
+        GROUP BY collector_id
+    ) ds ON ds.collector_id=c.id
+    LEFT JOIN (
+        SELECT collector_id, AVG(rating_value) AS avg_rating, COUNT(*) AS total_feedback
+        FROM (
+            SELECT s.collector_id, f.rating AS rating_value
+            FROM feedback f
+            INNER JOIN schedules s ON s.id=f.schedule_id
+            WHERE s.collector_id IS NOT NULL
+            UNION ALL
+            SELECT collector_id, stars AS rating_value FROM pickup_request_feedback WHERE collector_id IS NOT NULL
+        ) all_ratings
+        GROUP BY collector_id
+    ) rating_summary ON rating_summary.collector_id=c.id
     GROUP BY c.id
     ORDER BY total_completed DESC
 ")->fetchAll();

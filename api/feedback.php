@@ -2,18 +2,40 @@
 require_once __DIR__ . '/../config/session.php';
 require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/../includes/helpers.php';
+require_once __DIR__ . '/../includes/request_feedback.php';
 header('Content-Type: application/json');
 if (!isset($_SESSION['user_id'])) { http_response_code(403); exit; }
 
 $data = json_decode(file_get_contents('php://input'), true) ?? [];
 $sid  = (int)($data['schedule_id'] ?? 0);
+$rid  = (int)($data['request_id'] ?? 0);
 $rating = max(1, min(5, (int)($data['rating'] ?? 5)));
-$comment = trim($data['comment'] ?? '');
+$comment = trim((string)($data['comment'] ?? ''));
+$comment = function_exists('mb_substr') ? mb_substr($comment, 0, 2000) : substr($comment, 0, 2000);
 $uid = $_SESSION['user_id'];
 
-if (!$sid) { echo json_encode(['ok'=>false,'error'=>'Missing schedule_id']); exit; }
-
 $db = get_db();
+if ($rid > 0) {
+    try {
+        ensure_request_feedback_table($db);
+        $requestStmt = $db->prepare("SELECT id, resident_id, collector_id FROM requests WHERE id=? AND resident_id=? AND status='completed' LIMIT 1");
+        $requestStmt->execute([$rid, $uid]);
+        $request = $requestStmt->fetch();
+        if (!$request) { echo json_encode(['ok'=>false,'error'=>'Completed special pickup request not found.']); exit; }
+        if (empty($request['collector_id'])) { echo json_encode(['ok'=>false,'error'=>'This request has no assigned collector to rate.']); exit; }
+
+        $save = $db->prepare('INSERT INTO pickup_request_feedback (request_id,collector_id,resident_id,stars,comment) VALUES (?,?,?,?,?) ON DUPLICATE KEY UPDATE stars=VALUES(stars), comment=VALUES(comment), collector_id=VALUES(collector_id)');
+        $save->execute([$rid, (int)$request['collector_id'], (int)$uid, $rating, $comment ?: null]);
+        echo json_encode(['ok'=>true]);
+    } catch (Throwable $e) {
+        http_response_code(500);
+        echo json_encode(['ok'=>false,'error'=>'Could not save this rating. Please try again.']);
+    }
+    exit;
+}
+
+if (!$sid) { echo json_encode(['ok'=>false,'error'=>'Missing schedule_id or request_id']); exit; }
+
 $feedbackColumns = array_column($db->query('SHOW COLUMNS FROM feedback')->fetchAll(), 'Field');
 // Check schedule exists and is completed and in user's sitio
 $sched = $db->query("SELECT * FROM schedules WHERE id=$sid AND status='completed'")->fetch();

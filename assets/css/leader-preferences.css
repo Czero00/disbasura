@@ -1,0 +1,60 @@
+.leader-preference-controls {
+  position: fixed;
+  right: 1rem;
+  bottom: 1rem;
+  z-index: 1100;
+  display: flex;
+  align-items: center;
+  gap: .45rem;
+  padding: .35rem;
+  border: 1px solid #d4e6db;
+  border-radius: 12px;
+  background: rgba(255,255,255,.96);
+  box-shadow: 0 4px 18px rgba(15,45,30,.16);
+  font-family: inherit;
+  font-size: .82rem;
+  font-weight: 600;
+  line-height: 1.2;
+}
+.leader-preference-controls button,
+.leader-preference-controls select {
+  min-height: 38px;
+  padding: .45rem .7rem;
+  border: 1px solid #d4e6db;
+  border-radius: 8px;
+  background: #fff;
+  color: #1a3a2a;
+  font: inherit;
+  cursor: pointer;
+}
+.leader-preference-controls button:hover,
+.leader-preference-controls select:hover { border-color: #2d8653; }
+.leader-preference-controls button:disabled,
+.leader-preference-controls select:disabled { opacity: .65; cursor: wait; }
+
+html.dark body { background: #0d1f14 !important; color: #e2f0e8; }
+html.dark .panel,
+html.dark .stat-card,
+html.dark .truck-card,
+html.dark .leader-preference-controls,
+html.dark [style*="background:#fff"],
+html.dark [style*="background: #fff"],
+html.dark [style*="background:#ffffff"] {
+  background-color: #152b1e !important;
+  border-color: #294534 !important;
+  color: #e2f0e8;
+}
+html.dark input,
+html.dark select,
+html.dark textarea,
+html.dark .leader-preference-controls button,
+html.dark .leader-preference-controls select {
+  background-color: #152b1e !important;
+  border-color: #294534 !important;
+  color: #e2f0e8 !important;
+}
+html.dark h1, html.dark h2, html.dark h3, html.dark strong { color: #e2f0e8; }
+html.dark .leader-preference-controls { box-shadow: 0 4px 18px rgba(0,0,0,.4); }
+@media (max-width: 520px) {
+  .leader-preference-controls { right: .65rem; bottom: .65rem; }
+}

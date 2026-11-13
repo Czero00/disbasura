@@ -182,6 +182,16 @@ $contactPending = !empty($_SESSION['contact_pending_id']);
     .about-panel h3{font-size:24px;line-height:1.32;letter-spacing:-.5px;margin-bottom:14px}
     .about-panel p{font-size:14px;line-height:1.7;color:#c5dfd7}
     .panel-foot{color:#78dfb7!important;font-weight:700;margin-top:25px}
+    .team-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;width:min(100%,1160px);margin:42px auto 0}
+    .team-card{display:flex;align-items:center;gap:18px;min-width:0;padding:22px;border:1px solid var(--line);border-radius:22px;background:#fff;box-shadow:0 12px 28px #102b2410}
+    .team-photo{width:112px;height:112px;flex:0 0 112px;object-fit:cover;object-position:center 38%;border:4px solid #d9f5e9;border-radius:50%;background:#eaf4ef}
+    .team-details .eyebrow{margin-bottom:7px}
+    .team-details h3{margin:0;color:#14231d;font-size:21px;line-height:1.3;letter-spacing:-.4px}
+    .team-role{margin-top:5px;color:#52627a;font-size:14px;line-height:1.5}
+    .team-achievement{display:inline-flex;align-items:flex-start;gap:8px;margin-top:12px;padding:8px 12px;border-radius:16px;background:#e7f8f0;color:#087456;font-size:12px;font-weight:700;line-height:1.35}
+    .team-achievement-copy{display:grid;gap:2px;min-width:0}
+    .team-achievement-copy strong{font-size:12px;font-weight:850;white-space:nowrap}
+    .team-achievement-copy span{font-size:11px;font-weight:650;line-height:1.3}
     .features{padding:96px 0}
     .feature-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:32px}
     .feature-card{border:1px solid var(--line);background:#f8fafc;border-radius:24px;min-height:247px;padding:32px;box-shadow:0 2px 3px #0f172a08}
@@ -215,6 +225,9 @@ $contactPending = !empty($_SESSION['contact_pending_id']);
     @media(max-width:520px){.login-modal{padding:14px}.login-dialog{padding:30px 24px;border-radius:23px;max-height:calc(100vh - 28px);overflow-y:auto}.login-brand{margin-bottom:24px}.login-close{right:18px;top:18px}.login-heading{font-size:25px}}
     @media(max-width:650px){.contact{padding:64px 15px}.contact-card{padding:29px 22px;border-radius:20px}.contact-head h2{font-size:27px}}
     @media(max-width:650px){.container{width:min(100% - 30px,1220px)}.site-header{height:82px}.brand{gap:9px;padding:6px 9px;border-radius:15px}.brand-mark{width:38px;height:38px}.brand-name{font-size:18px}.brand-tag{font-size:8px}.menu-toggle{display:block;margin-left:auto;width:40px;height:40px}.nav{gap:8px}.nav-links{display:none;position:absolute;left:15px;right:15px;top:75px;background:#031b16;padding:14px;border:1px solid #124437;border-radius:16px;flex-direction:column;align-items:stretch;gap:8px}.nav-links.open{display:flex}.nav-links a{text-align:center}.nav-actions{gap:7px;font-size:12px}.login-link{padding:9px 12px}.signup{padding:9px 13px}.hero{min-height:590px;padding:72px 18px}.badge{font-size:10px;padding:9px 13px;margin-bottom:30px}.hero h1{font-size:clamp(39px,11vw,58px);letter-spacing:-2.6px;line-height:.98}.hero p{font-size:15px}.hero-buttons{gap:10px}.button{min-width:0;padding:14px 18px;font-size:13px}.section,.features{padding:72px 0}.section-heading{margin-bottom:38px}h2{font-size:30px}.steps,.feature-grid{grid-template-columns:1fr}.step{min-height:0;padding:27px 24px}.about{padding:76px 0}.about-grid{grid-template-columns:1fr}.about-panel{min-height:310px;padding:30px}.footer-row{flex-direction:column;text-align:center}.footer-links{order:3}.copyright{order:2;line-height:1.6}}
+    @media(max-width:1050px){.team-grid{grid-template-columns:repeat(2,minmax(0,1fr));width:min(100%,980px)}}
+    @media(max-width:900px){.team-card{padding:18px;gap:15px}.team-photo{width:96px;height:96px;flex-basis:96px}}
+    @media(max-width:650px){.team-grid{grid-template-columns:1fr;margin-top:30px}.team-card{gap:15px;padding:18px}.team-photo{width:88px;height:88px;flex-basis:88px}.team-details h3{font-size:18px}.team-role{font-size:13px}.team-achievement{font-size:11px;padding:6px 9px}}
     @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*:before,*:after{transition:none!important}}
   </style>
 </head>
@@ -250,9 +263,40 @@ $contactPending = !empty($_SESSION['contact_pending_id']);
     </div>
   </section>
   <section class="about" id="about">
-    <div class="container about-grid">
+    <div class="container">
+      <div class="about-grid">
       <div class="about-copy"><p class="eyebrow">About DisBasura</p><h2>Empowering Barangays with Smart Eco-Tech Innovations</h2><p>DisBasura is a comprehensive capstone initiative developed for local barangay waste management. By replacing inefficient traditional garbage collection schedules with a digitized real-time dispatch, tracking, and reporting platform, we minimize missed collections and optimize urban cleanliness.</p><div class="stats"><div class="stat"><strong>100%</strong><span>Digital Accountability</span></div><div class="stat"><strong>Real-Time</strong><span>GPS Dispatching</span></div></div></div>
       <aside class="about-panel"><div class="shield"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3 19 6v5c0 4.7-2.8 8-7 10-4.2-2-7-5.3-7-10V6l7-3Z" stroke="currentColor" stroke-width="1.7"/><path d="m9 12 2 2 4-4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></div><h3>Cleaner Neighborhoods, Transparent Governance</h3><p>Our centralized database keeps sitio leaders, local residents, and truck operators on the same page. Photo proof uploads ensure zero ambiguity when collections are marked completed.</p><p class="panel-foot">Tested for Barangay Community Deployment&nbsp; ✓</p></aside>
+      </div>
+      <div class="team-grid" aria-label="DisBasura project team">
+        <article class="team-card">
+          <img class="team-photo" src="/disbasura/assets/images/team/rey-lendon-panares.jpg" alt="Pañares, Rey Lendon G." loading="lazy"/>
+          <div class="team-details">
+            <p class="eyebrow">Project Team</p>
+            <h3>Pañares, Rey Lendon G.</h3>
+            <p class="team-role">Project Manager/Lead Developer</p>
+            <span class="team-achievement" title="Top 25 in the Philippine Startup Challenge XI, Central Visayas Regional Competition"><span aria-hidden="true">🏆</span><span class="team-achievement-copy"><strong>Top 25</strong><span>Philippine Startup Challenge XI<br>Central Visayas Regional Competition</span></span></span>
+          </div>
+        </article>
+        <article class="team-card">
+          <img class="team-photo" src="/disbasura/assets/images/team/brent-john-paller.jpg" alt="Paller, Brent John B." loading="lazy"/>
+          <div class="team-details">
+            <p class="eyebrow">Project Team</p>
+            <h3>Paller, Brent John B.</h3>
+            <p class="team-role">UI/UX / Troubleshooter</p>
+            <span class="team-achievement" title="Top 25 in the Philippine Startup Challenge XI, Central Visayas Regional Competition"><span aria-hidden="true">🏆</span><span class="team-achievement-copy"><strong>Top 25</strong><span>Philippine Startup Challenge XI<br>Central Visayas Regional Competition</span></span></span>
+          </div>
+        </article>
+        <article class="team-card">
+          <img class="team-photo" src="/disbasura/assets/images/team/joseph-rey-mart-paradilla.jpg" alt="Paradilla, Joseph Rey Mart M." loading="lazy"/>
+          <div class="team-details">
+            <p class="eyebrow">Project Team</p>
+            <h3>Paradilla, Joseph Rey Mart M.</h3>
+            <p class="team-role">QA Tester / Database / Documentation</p>
+            <span class="team-achievement" title="Top 25 in the Philippine Startup Challenge XI, Central Visayas Regional Competition"><span aria-hidden="true">🏆</span><span class="team-achievement-copy"><strong>Top 25</strong><span>Philippine Startup Challenge XI<br>Central Visayas Regional Competition</span></span></span>
+          </div>
+        </article>
+      </div>
     </div>
   </section>
   <section class="features" id="services">

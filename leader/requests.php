@@ -3,6 +3,7 @@ require_once __DIR__ . '/../middleware/resident_auth.php';
 require_once __DIR__ . '/../includes/helpers.php';
 require_once __DIR__ . '/../includes/payment_helpers.php';
 if (($_SESSION['role'] ?? '') !== 'leader') { header('Location: /disbasura/'); exit; }
+require_once __DIR__ . '/../includes/leader_preferences_init.php';
 $db = get_db();
 $sitio = (string)($_SESSION['sitio'] ?? '');
 $uid = (int)$_SESSION['user_id'];
@@ -38,9 +39,9 @@ $sql .= ' ORDER BY r.created_at DESC';
 $stmt = $db->prepare($sql); $stmt->execute($params); $requests = $stmt->fetchAll();
 $labels = [''=>'All','pending'=>'Needs review','leader_approved'=>'Sent to Admin','approved'=>'Admin approved','rejected'=>'Rejected','completed'=>'Completed','assigned'=>'Assigned'];
 ?>
-<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/><title>Sitio Requests — DisBasura</title><link rel="stylesheet" href="/disbasura/assets/css/base.css"/><link rel="stylesheet" href="/disbasura/assets/css/dashboard.css"/></head>
-<body style="background:var(--bg-page);padding:1.5rem"><div style="max-width:900px;margin:0 auto">
-<div style="display:flex;align-items:center;gap:.75rem;margin-bottom:1.5rem;flex-wrap:wrap"><a href="/disbasura/leader/dashboard.php" style="color:var(--text-mid);text-decoration:none">← Dashboard</a><h1 style="font-family:'Plus Jakarta Sans',sans-serif;font-size:1.3rem;font-weight:800">Sitio Requests</h1><a href="/disbasura/leader/payments.php" class="btn-approve" style="margin-left:auto;text-decoration:none">Review Payments</a></div>
+<!DOCTYPE html><html lang="<?= e($leaderLangTag) ?>" class="<?= $leaderIsDark ? 'dark' : '' ?>"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/><title>Sitio Requests — DisBasura</title><link rel="stylesheet" href="/disbasura/assets/css/base.css"/><link rel="stylesheet" href="/disbasura/assets/css/dashboard.css"/></head>
+<body style="background:var(--bg-page);padding:1.5rem"><?php require __DIR__ . '/../includes/leader_preferences_controls.php'; ?><div style="max-width:900px;margin:0 auto">
+<div style="display:flex;align-items:center;gap:.75rem;margin-bottom:1.5rem;flex-wrap:wrap"><a href="/disbasura/leader/dashboard.php" style="color:var(--text-mid);text-decoration:none">← Dashboard</a><h1 style="font-family:'Plus Jakarta Sans',sans-serif;font-size:1.3rem;font-weight:800"><?= e($leaderT['leader_sitio_requests']) ?></h1><a href="/disbasura/leader/payments.php" class="btn-approve" style="margin-left:auto;text-decoration:none"><?= e($leaderT['leader_review_payments']) ?></a></div>
 <div class="filter-tabs"><?php foreach($labels as $v=>$label): ?><a href="<?= $v ? '?status='.e($v) : '/disbasura/leader/requests.php' ?>" class="tab <?= $statusFilter===$v?'active':'' ?>"><?= e($label) ?></a><?php endforeach; ?></div>
 <?php if($requests): foreach($requests as $r): ?><div class="panel" style="margin-bottom:1rem"><div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:.75rem"><div><strong><?= e($r['full_name']) ?></strong><div style="font-size:.82rem;color:var(--text-mid)"><?= e($r['waste_type']) ?> · <?= e(fmt_date($r['preferred_date'])) ?></div><div style="font-size:.82rem;color:var(--text-mid)"><?= e($r['location'] ?? '') ?></div></div><span class="badge <?= e($r['status']) ?>"><?= e($labels[$r['status']] ?? $r['status']) ?></span></div>
 <?php if($r['status']==='pending'): ?><div style="display:flex;gap:.5rem;margin-top:.75rem"><form method="POST"><input type="hidden" name="rid" value="<?= (int)$r['id'] ?>"><button name="approve" class="btn-approve" style="font-size:.8rem">Approve and send to Admin</button></form><form method="POST" onsubmit="return confirm('Decline this pickup request?')"><input type="hidden" name="rid" value="<?= (int)$r['id'] ?>"><button name="reject" class="btn-reject" style="font-size:.8rem">Decline</button></form></div><?php endif; ?></div><?php endforeach; else: ?><div class="empty-state" style="padding:3rem"><p>No requests found.</p></div><?php endif; ?>

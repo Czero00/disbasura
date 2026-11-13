@@ -2,15 +2,45 @@
 require_once __DIR__ . '/../middleware/admin_auth.php';
 require_once __DIR__ . '/../includes/helpers.php';
 require_once __DIR__ . '/../includes/dispute_helpers.php';
+require_once __DIR__ . '/../includes/request_dispute_helpers.php';
 require_once __DIR__ . '/../includes/base_admin.php';
 $db = get_db();
 
 $disputeColumns = ensure_dispute_schema($db);
 $disputeHasUserId = in_array('user_id', $disputeColumns, true);
+ensure_request_disputes_table($db);
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $did     = (int)($_POST['did'] ?? 0);
     $verdict = $_POST['verdict'] ?? '';
+    $disputeType = $_POST['dispute_type'] ?? 'schedule';
+    if ($disputeType === 'request') {
+        $disputeStmt = $db->prepare("SELECT * FROM pickup_request_disputes WHERE id=? AND status='pending'");
+        $disputeStmt->execute([$did]);
+        $dispute = $disputeStmt->fetch();
+        if ($dispute) {
+            $resolution = $verdict === 'confirm' ? 'confirm' : 'reopen';
+            $db->prepare("UPDATE pickup_request_disputes SET status='resolved',resolution=?,admin_id=?,resolved_at=NOW() WHERE id=?")
+                ->execute([$resolution, $_SESSION['admin_id'], $did]);
+            $requestStmt = $db->prepare('SELECT resident_id,collector_id FROM requests WHERE id=?');
+            $requestStmt->execute([$dispute['request_id']]);
+            $request = $requestStmt->fetch();
+            if ($resolution === 'confirm') {
+                $db->prepare("UPDATE requests SET status='completed',completed_at=COALESCE(completed_at,NOW()) WHERE id=?")
+                    ->execute([$dispute['request_id']]);
+                if ($request) notify_user($db,(int)$request['resident_id'],'Your special pickup dispute was reviewed. Admin confirmed the collection was completed.');
+            } else {
+                $db->prepare("UPDATE requests SET status='assigned',proof_photo=NULL,completed_at=NULL WHERE id=?")
+                    ->execute([$dispute['request_id']]);
+                if ($request) {
+                    notify_user($db,(int)$request['resident_id'],'Your special pickup dispute was reviewed. The request was reopened for the collector to complete again.');
+                    if (!empty($request['collector_id'])) notify_collector($db,(int)$request['collector_id'],'Special pickup request #'.$dispute['request_id'].' was reopened after a resident dispute. Please complete it again.','Pickup request reopened');
+                }
+            }
+            log_activity($_SESSION['admin_id'], 'Resolved Special Pickup Dispute', 'Request #'.$dispute['request_id'].' — verdict: '.$resolution, 'admin', 'pickup_request_disputes', $did);
+        }
+        header('Location: /disbasura/admin/disputes.php'); exit;
+    }
     $disputeStmt = $db->prepare("SELECT * FROM disputes WHERE id=? AND status='pending'");
     $disputeStmt->execute([$did]);
     $dispute = $disputeStmt->fetch();
@@ -39,7 +69,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 $residentJoin = $disputeHasUserId ? 'LEFT JOIN users u ON d.user_id=u.id' : '';
 $residentName = $disputeHasUserId ? 'u.full_name' : "'Unknown resident'";
-$disputes = $db->query("SELECT d.*,$residentName AS resident_name,s.sitio,s.scheduled_at,s.waste_type,s.proof_photo AS sched_proof_photo,s.collector_id,c.full_name AS collector_name FROM disputes d $residentJoin JOIN schedules s ON d.schedule_id=s.id LEFT JOIN collectors c ON s.collector_id=c.id WHERE d.status='pending' ORDER BY d.created_at DESC")->fetchAll();
+$scheduleDisputes = $db->query("SELECT d.id,d.schedule_id AS item_id,'schedule' AS dispute_type,d.description,d.status,d.created_at,d.proof_photo AS resident_proof_photo,$residentName AS resident_name,s.sitio,s.scheduled_at AS item_date,s.waste_type,s.proof_photo AS collector_proof_photo,s.collector_id,c.full_name AS collector_name FROM disputes d $residentJoin JOIN schedules s ON d.schedule_id=s.id LEFT JOIN collectors c ON s.collector_id=c.id WHERE d.status='pending'")->fetchAll();
+$requestDisputes = $db->query("SELECT d.id,d.request_id AS item_id,'request' AS dispute_type,d.description,d.status,d.created_at,d.proof_photo AS resident_proof_photo,u.full_name AS resident_name,r.sitio,r.preferred_date AS item_date,r.waste_type,r.proof_photo AS collector_proof_photo,r.collector_id,c.full_name AS collector_name FROM pickup_request_disputes d JOIN requests r ON d.request_id=r.id JOIN users u ON d.resident_id=u.id LEFT JOIN collectors c ON d.collector_id=c.id WHERE d.status='pending'")->fetchAll();
+$disputes = array_merge($scheduleDisputes, $requestDisputes);
+usort($disputes, static fn($a, $b) => strcmp((string)$b['created_at'], (string)$a['created_at']));
 $unread = get_unread_admin_count($_SESSION['admin_id']);
 render_admin_header('disputes',$unread,'Disputes — DisBasura Admin');
 ?>
@@ -49,7 +82,8 @@ render_admin_header('disputes',$unread,'Disputes — DisBasura Admin');
   <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:.75rem;margin-bottom:1.25rem;padding-bottom:1.25rem;border-bottom:1px solid var(--border-light)">
     <div>
       <strong style="font-size:1rem"><?= htmlspecialchars($d['sitio']) ?> — <?= htmlspecialchars($d['waste_type']) ?></strong>
-      <div style="font-size:.82rem;color:var(--text-light)">Scheduled: <?= fmt_date($d['scheduled_at']) ?></div>
+      <div style="font-size:.82rem;color:var(--text-light)"><?= $d['dispute_type']==='request'?'Pickup requested':'Scheduled' ?>: <?= fmt_date($d['item_date']) ?></div>
+      <?php if($d['dispute_type']==='request'): ?><div style="font-size:.75rem;color:var(--green-main);font-weight:700">Special pickup request #<?= (int)$d['item_id'] ?></div><?php endif; ?>
       <div style="font-size:.82rem;color:var(--text-mid)">👤 Resident: <strong><?= htmlspecialchars($d['resident_name'] ?? 'Unknown resident') ?></strong></div>
       <div style="font-size:.82rem;color:var(--text-mid)">🚛 Collector: <strong><?= htmlspecialchars($d['collector_name']??'Unassigned') ?></strong></div>
       <div style="font-size:.82rem;color:var(--orange)">Filed: <?= fmt_date($d['created_at']) ?></div>
@@ -59,18 +93,18 @@ render_admin_header('disputes',$unread,'Disputes — DisBasura Admin');
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.25rem">
     <div style="border-radius:12px;overflow:hidden;border:1px solid var(--border-light)">
       <div style="padding:.55rem .85rem;font-size:.78rem;font-weight:700;background:var(--green-pale);color:var(--green-main)">🚛 Collector's Proof (Claims Done)</div>
-      <?php if($d['sched_proof_photo']): ?><img src="/disbasura/uploads/<?= htmlspecialchars($d['sched_proof_photo']) ?>" style="width:100%;max-height:220px;object-fit:cover;display:block"/><?php else: ?><div style="padding:2rem;text-align:center;background:var(--bg-page);color:var(--text-light);font-size:.82rem">No photo submitted</div><?php endif; ?>
+      <?php if($d['collector_proof_photo']): ?><img src="/disbasura/uploads/<?= htmlspecialchars($d['collector_proof_photo']) ?>" style="width:100%;max-height:220px;object-fit:cover;display:block"/><?php else: ?><div style="padding:2rem;text-align:center;background:var(--bg-page);color:var(--text-light);font-size:.82rem">No photo submitted</div><?php endif; ?>
     </div>
     <div style="border-radius:12px;overflow:hidden;border:1px solid var(--border-light)">
       <div style="padding:.55rem .85rem;font-size:.78rem;font-weight:700;background:#fff3e0;color:var(--orange)">👤 Resident's Photo (Claims NOT Done)</div>
-      <?php if($d['proof_photo']): ?><img src="/disbasura/uploads/<?= htmlspecialchars($d['proof_photo']) ?>" style="width:100%;max-height:220px;object-fit:cover;display:block"/><?php else: ?><div style="padding:2rem;text-align:center;background:var(--bg-page);color:var(--text-light);font-size:.82rem">No photo submitted</div><?php endif; ?>
+      <?php if($d['resident_proof_photo']): ?><img src="/disbasura/uploads/<?= htmlspecialchars($d['resident_proof_photo']) ?>" style="width:100%;max-height:220px;object-fit:cover;display:block"/><?php else: ?><div style="padding:2rem;text-align:center;background:var(--bg-page);color:var(--text-light);font-size:.82rem">No photo submitted</div><?php endif; ?>
     </div>
   </div>
   <?php if($d['description']): ?><div style="background:var(--bg-page);border-radius:8px;padding:.75rem 1rem;font-size:.83rem;color:var(--text-mid);margin-bottom:1.25rem">💬 Resident's note: "<?= htmlspecialchars($d['description']) ?>"</div><?php endif; ?>
   <div style="display:flex;gap:.75rem;align-items:center;flex-wrap:wrap">
     <span style="font-size:.82rem;font-weight:600;color:var(--text-mid)">Your Verdict:</span>
-    <form method="POST" style="display:inline"><input type="hidden" name="did" value="<?= $d['id'] ?>"><button type="submit" name="verdict" value="confirm" class="btn-approve" onclick="return confirm('Confirm the collector completed this?')" style="display:inline-flex;align-items:center;gap:.4rem">✅ Collector was Honest — Confirm Done</button></form>
-    <form method="POST" style="display:inline"><input type="hidden" name="did" value="<?= $d['id'] ?>"><button type="submit" name="verdict" value="reopen" class="btn-reject" onclick="return confirm('Re-open this schedule? The collector must collect again.')" style="display:inline-flex;align-items:center;gap:.4rem;margin-left:.5rem">🔁 Re-open — Collector Must Redo</button></form>
+    <form method="POST" style="display:inline"><input type="hidden" name="did" value="<?= $d['id'] ?>"><input type="hidden" name="dispute_type" value="<?= e($d['dispute_type']) ?>"><button type="submit" name="verdict" value="confirm" class="btn-approve" onclick="return confirm('Confirm the collector completed this?')" style="display:inline-flex;align-items:center;gap:.4rem">✅ Collector was Honest — Confirm Done</button></form>
+    <form method="POST" style="display:inline"><input type="hidden" name="did" value="<?= $d['id'] ?>"><input type="hidden" name="dispute_type" value="<?= e($d['dispute_type']) ?>"><button type="submit" name="verdict" value="reopen" class="btn-reject" onclick="return confirm('Re-open this collection? The collector must collect again.')" style="display:inline-flex;align-items:center;gap:.4rem;margin-left:.5rem">🔁 Re-open — Collector Must Redo</button></form>
   </div>
 </div>
 <?php endforeach; else: ?>

@@ -2,11 +2,12 @@
 require_once __DIR__ . '/../middleware/resident_auth.php';
 require_once __DIR__ . '/../includes/helpers.php';
 if ($_SESSION['role'] !== 'leader') { header('Location: /disbasura/resident/tracker.php'); exit; }
+require_once __DIR__ . '/../includes/leader_preferences_init.php';
 
 $sitio = $_SESSION['sitio'] ?? '';
 ?>
 <!DOCTYPE html>
-<html lang="en">
+<html lang="<?= e($leaderLangTag) ?>" class="<?= $leaderIsDark ? 'dark' : '' ?>">
 <head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>Live Tracker — DisBasura</title>
 <link rel="stylesheet" href="/disbasura/assets/css/base.css"/>
@@ -20,7 +21,7 @@ $sitio = $_SESSION['sitio'] ?? '';
   .truck-icon{width:44px;height:44px;border-radius:50%;background:#e8f5ee;display:flex;align-items:center;justify-content:center;font-size:1.3rem;flex-shrink:0}
 </style>
 </head>
-<body style="background:var(--bg-page,#f4f9f6);padding:1.5rem">
+<body style="background:var(--bg-page,#f4f9f6);padding:1.5rem"><?php require __DIR__ . '/../includes/leader_preferences_controls.php'; ?>
 <div style="max-width:1000px;margin:0 auto">
   <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.75rem;margin-bottom:.5rem">
     <div style="display:flex;align-items:center;gap:.75rem">

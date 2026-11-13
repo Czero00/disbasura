@@ -70,7 +70,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $sitios_list = get_sitios();
 $collectorFormError = $_SESSION['collector_form_error'] ?? '';
 unset($_SESSION['collector_form_error']);
-$collectors  = $db->query("SELECT c.*,COUNT(DISTINCT s.id) as schedule_count,COUNT(DISTINCT r.id) as request_count,SUM(CASE WHEN s.status='completed' THEN 1 ELSE 0 END) as completed_count FROM collectors c LEFT JOIN schedules s ON s.collector_id=c.id LEFT JOIN requests r ON r.collector_id=c.id GROUP BY c.id ORDER BY c.full_name")->fetchAll();
+$collectors  = $db->query("SELECT c.*,
+    COALESCE(ss.schedule_count,0) AS schedule_count,
+    COALESCE(rs.request_count,0) AS request_count,
+    COALESCE(ss.schedule_completed,0)+COALESCE(rs.request_completed,0) AS completed_count
+    FROM collectors c
+    LEFT JOIN (SELECT collector_id,COUNT(*) AS schedule_count,SUM(status='completed') AS schedule_completed FROM schedules GROUP BY collector_id) ss ON ss.collector_id=c.id
+    LEFT JOIN (SELECT collector_id,COUNT(*) AS request_count,SUM(status='completed') AS request_completed FROM requests WHERE collector_id IS NOT NULL GROUP BY collector_id) rs ON rs.collector_id=c.id
+    ORDER BY c.full_name")->fetchAll();
 $unread = get_unread_admin_count($_SESSION['admin_id']);
 render_admin_header('collectors',$unread,'Collectors — DisBasura Admin');
 ?>

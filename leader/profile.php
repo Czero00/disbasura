@@ -2,6 +2,7 @@
 require_once __DIR__ . '/../middleware/resident_auth.php';
 require_once __DIR__ . '/../includes/helpers.php';
 if ($_SESSION['role'] !== 'leader') { header('Location: /disbasura/resident/dashboard.php'); exit; }
+require_once __DIR__ . '/../includes/leader_preferences_init.php';
 
 $db  = get_db();
 $uid = $_SESSION['user_id'];
@@ -56,8 +57,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (isset($_POST['save_photo']) && isset($_FILES['profile_photo'])) {
         $fname = save_upload($_FILES['profile_photo'], "avatar_user_{$uid}");
         if ($fname) {
-            if (!empty($user['profile_photo'])) @unlink(__DIR__ . '/../uploads/' . $user['profile_photo']);
             $db->prepare("UPDATE users SET profile_photo=? WHERE id=?")->execute([$fname, $uid]);
+            if (!empty($user['profile_photo']) && $user['profile_photo'] !== $fname) {
+                @unlink(__DIR__ . '/../uploads/' . basename($user['profile_photo']));
+            }
             $success = 'Profile photo updated.';
             $user = $db->query("SELECT * FROM users WHERE id=$uid")->fetch();
         } else {
@@ -66,8 +69,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if (isset($_POST['remove_photo'])) {
-        if (!empty($user['profile_photo'])) @unlink(__DIR__ . '/../uploads/' . $user['profile_photo']);
         $db->prepare("UPDATE users SET profile_photo=NULL WHERE id=?")->execute([$uid]);
+        if (!empty($user['profile_photo'])) @unlink(__DIR__ . '/../uploads/' . basename($user['profile_photo']));
         $success = 'Photo removed.';
         $user = $db->query("SELECT * FROM users WHERE id=$uid")->fetch();
     }
@@ -81,14 +84,19 @@ if (isset($_GET['err'])) $error   = htmlspecialchars($_GET['err']);
 $sitio     = $_SESSION['sitio'] ?? '';
 $full_name = htmlspecialchars($_SESSION['full_name']);
 $initial   = strtoupper(substr($_SESSION['full_name'], 0, 1));
-$photo     = !empty($user['profile_photo']) ? '/disbasura/uploads/' . $user['profile_photo'] : null;
+$photoName = !empty($user['profile_photo']) ? basename($user['profile_photo']) : '';
+$photoPath = $photoName !== '' ? __DIR__ . '/../uploads/' . $photoName : '';
+$photo     = $photoName !== '' && is_file($photoPath)
+    ? '/disbasura/uploads/' . rawurlencode($photoName) . '?v=' . (string)filemtime($photoPath)
+    : null;
 ?>
 <!DOCTYPE html>
-<html lang="en">
+<html lang="<?= e($leaderLangTag) ?>" class="<?= $leaderIsDark ? 'dark' : '' ?>">
 <head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>My Profile — DisBasura</title>
 <link rel="stylesheet" href="/disbasura/assets/css/base.css"/>
 <link rel="stylesheet" href="/disbasura/assets/css/dashboard.css"/>
+<link rel="stylesheet" href="/disbasura/assets/css/leader-preferences.css"/>
 <style>
   .field{margin-bottom:1rem}
   .field label{display:block;font-size:.82rem;font-weight:600;color:var(--text-mid,#5a7a68);margin-bottom:.35rem}
@@ -99,6 +107,7 @@ $photo     = !empty($user['profile_photo']) ? '/disbasura/uploads/' . $user['pro
 </style>
 </head>
 <body>
+<?php require __DIR__ . '/../includes/leader_preferences_controls.php'; ?>
 <div class="app active" id="appRoot">
   <aside class="sidebar" id="sidebar">
     <div class="sidebar-brand">
@@ -125,12 +134,12 @@ $photo     = !empty($user['profile_photo']) ? '/disbasura/uploads/' . $user['pro
       <div class="sidebar-brand-text"><h2>DisBasura</h2><span>Sitio Leader</span></div>
     </div>
     <nav class="sidebar-nav">
-      <a class="nav-item" href="/disbasura/leader/dashboard.php" data-tip="Dashboard"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg><span class="nav-label">Dashboard</span></a>
-      <a class="nav-item" href="/disbasura/leader/requests.php" data-tip="Sitio Requests"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg><span class="nav-label">Sitio Requests</span></a>
-      <a class="nav-item" href="/disbasura/leader/payments.php" data-tip="Payment Review"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg><span class="nav-label">Payment Review</span></a>
+      <a class="nav-item" href="/disbasura/leader/dashboard.php" data-tip="Dashboard"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg><span class="nav-label"><?= e($leaderT['dashboard']) ?></span></a>
+      <a class="nav-item" href="/disbasura/leader/requests.php" data-tip="Sitio Requests"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg><span class="nav-label"><?= e($leaderT['leader_sitio_requests']) ?></span></a>
+      <a class="nav-item" href="/disbasura/leader/payments.php" data-tip="Payment Review"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg><span class="nav-label"><?= e($leaderT['leader_payment_review']) ?></span></a>
       <a class="nav-item" href="/disbasura/leader/submit-request.php" data-tip="Submit for Resident"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/></svg><span class="nav-label">Submit for Resident</span></a>
-      <a class="nav-item" href="/disbasura/leader/notifications.php" data-tip="Notifications"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg><span class="nav-label">Notifications</span></a>
-      <a class="nav-item active" href="/disbasura/leader/profile.php" data-tip="My Profile"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><span class="nav-label">My Profile</span></a>
+      <a class="nav-item" href="/disbasura/leader/notifications.php" data-tip="Notifications"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg><span class="nav-label"><?= e($leaderT['notifications']) ?></span></a>
+      <a class="nav-item active" href="/disbasura/leader/profile.php" data-tip="My Profile"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><span class="nav-label"><?= e($leaderT['leader_my_profile']) ?></span></a>
     </nav>
     <div class="sidebar-footer">
       <div class="sidebar-user">
@@ -147,7 +156,7 @@ $photo     = !empty($user['profile_photo']) ? '/disbasura/uploads/' . $user['pro
       <span style="background:#fff3e0;color:var(--orange);border:1px solid #ffe0b2;border-radius:20px;padding:.25rem .85rem;font-size:.78rem;font-weight:600">⭐ Sitio Leader — <?= htmlspecialchars($sitio) ?></span>
     </div>
     <div class="page-content active">
-      <div class="page-header"><h1>My Profile</h1><p>Update your photo, name, and password</p></div>
+      <div class="page-header"><h1><?= e($leaderT['leader_my_profile']) ?></h1><p><?= e($leaderT['leader_update_profile']) ?></p></div>
 
       <?php if ($error):   ?><div class="alert-error"><?= htmlspecialchars($error) ?></div><?php endif; ?>
       <?php if ($success): ?><div class="alert-success">✅ <?= htmlspecialchars($success) ?></div><?php endif; ?>
