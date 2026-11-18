@@ -11,6 +11,15 @@
   padding: 0;
 }
 
+.panel-brand-logo {
+  display: block;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 auto;
+  object-fit: contain;
+  background: transparent;
+}
+
 :root {
   /* Brand Colors */
   --green-dark:    #0d2b1e;

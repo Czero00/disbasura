@@ -92,8 +92,8 @@ $photo     = $photoName !== '' && is_file($photoPath)
 ?>
 <!DOCTYPE html>
 <html lang="<?= e($leaderLangTag) ?>" class="<?= $leaderIsDark ? 'dark' : '' ?>">
-<head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>My Profile — DisBasura</title>
+<head><link rel="icon" type="image/png" href="/disbasura/assets/images/disbasura-icon.png"><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>DisBasura</title>
 <link rel="stylesheet" href="/disbasura/assets/css/base.css"/>
 <link rel="stylesheet" href="/disbasura/assets/css/dashboard.css"/>
 <link rel="stylesheet" href="/disbasura/assets/css/leader-preferences.css"/>
@@ -111,26 +111,7 @@ $photo     = $photoName !== '' && is_file($photoPath)
 <div class="app active" id="appRoot">
   <aside class="sidebar" id="sidebar">
     <div class="sidebar-brand">
-      <svg viewBox="0 0 72 72" fill="none" width="34" height="34" xmlns="http://www.w3.org/2000/svg">
-        <defs>
-          <linearGradient id="ldrRingG2" x1="0" y1="0" x2="72" y2="72" gradientUnits="userSpaceOnUse">
-            <stop offset="0%" stop-color="#5dd96b"/><stop offset="50%" stop-color="#22a94a"/><stop offset="100%" stop-color="#0d6e30"/>
-          </linearGradient>
-          <linearGradient id="ldrLeafG2" x1="36" y1="20" x2="36" y2="60" gradientUnits="userSpaceOnUse">
-            <stop offset="0%" stop-color="#7de87a"/><stop offset="100%" stop-color="#1a8a38"/>
-          </linearGradient>
-        </defs>
-        <path d="M36 8 A28 28 0 0 1 64 36" stroke="url(#ldrRingG2)" stroke-width="6" fill="none" stroke-linecap="round"/>
-        <polygon points="64,28 68,38 58,36" fill="#22a94a"/>
-        <path d="M36 64 A28 28 0 0 1 8 36" stroke="url(#ldrRingG2)" stroke-width="6" fill="none" stroke-linecap="round"/>
-        <polygon points="8,44 4,34 14,36" fill="#22a94a"/>
-        <path d="M64 36 A28 28 0 0 1 36 64" stroke="url(#ldrRingG2)" stroke-width="6" fill="none" stroke-linecap="round"/>
-        <path d="M8 36 A28 28 0 0 1 36 8" stroke="url(#ldrRingG2)" stroke-width="6" fill="none" stroke-linecap="round"/>
-        <path d="M36 58 Q36 44 36 36" stroke="#1a8a38" stroke-width="2.5" stroke-linecap="round"/>
-        <path d="M36 44 Q26 38 24 28 Q32 26 36 36 Z" fill="url(#ldrLeafG2)"/>
-        <path d="M36 44 Q46 38 48 28 Q40 26 36 36 Z" fill="url(#ldrLeafG2)"/>
-        <path d="M36 36 Q30 28 31 20 Q38 22 36 32 Z" fill="#5dd96b"/>
-      </svg>
+      <img class="panel-brand-logo" width="40" height="40" src="/disbasura/assets/images/disbasura-logo.png" alt="DisBasura logo">
       <div class="sidebar-brand-text"><h2>DisBasura</h2><span>Sitio Leader</span></div>
     </div>
     <nav class="sidebar-nav">

@@ -8,8 +8,8 @@ $sitio = $_SESSION['sitio'] ?? '';
 ?>
 <!DOCTYPE html>
 <html lang="<?= e($leaderLangTag) ?>" class="<?= $leaderIsDark ? 'dark' : '' ?>">
-<head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>Live Tracker — DisBasura</title>
+<head><link rel="icon" type="image/png" href="/disbasura/assets/images/disbasura-icon.png"><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>DisBasura</title>
 <link rel="stylesheet" href="/disbasura/assets/css/base.css"/>
 <link rel="stylesheet" href="/disbasura/assets/css/dashboard.css"/>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>

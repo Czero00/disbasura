@@ -34,9 +34,9 @@ $selectedWaste = $_POST['waste_type'] ?? 'Biodegradable';
 ?>
 <!DOCTYPE html>
 <html lang="en">
-<head>
+<head><link rel="icon" type="image/png" href="/disbasura/assets/images/disbasura-icon.png">
 <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>Request Special Pickup — DisBasura</title>
+<title>DisBasura</title>
 <link rel="stylesheet" href="/disbasura/assets/css/base.css"/>
 <style>
 :root{--pickup-green:#009b70;--pickup-dark:#073f32;--pickup-ink:#172133;--pickup-muted:#71819a;--pickup-line:#dfe7ef}input,select,textarea,button{font-family:inherit}

@@ -25,9 +25,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 ?>
 <!DOCTYPE html>
 <html lang="en">
-<head>
+<head><link rel="icon" type="image/png" href="/disbasura/assets/images/disbasura-icon.png">
   <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-  <title>Collector Login — DisBasura</title>
+  <title>DisBasura</title>
   <link rel="stylesheet" href="/disbasura/assets/css/base.css"/>
   <link rel="stylesheet" href="/disbasura/assets/css/auth.css"/>
 </head>
@@ -58,31 +58,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <div class="auth-card">
 
       <div class="auth-brand">
-        <svg class="auth-brand-icon" viewBox="0 0 72 72" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <defs>
-            <linearGradient id="ringGradC" x1="0" y1="0" x2="72" y2="72" gradientUnits="userSpaceOnUse">
-              <stop offset="0%" stop-color="#5dd96b"/>
-              <stop offset="50%" stop-color="#22a94a"/>
-              <stop offset="100%" stop-color="#0d6e30"/>
-            </linearGradient>
-            <linearGradient id="leafGradC" x1="36" y1="20" x2="36" y2="60" gradientUnits="userSpaceOnUse">
-              <stop offset="0%" stop-color="#7de87a"/>
-              <stop offset="100%" stop-color="#1a8a38"/>
-            </linearGradient>
-          </defs>
-          <path d="M36 8 A28 28 0 0 1 64 36" stroke="url(#ringGradC)" stroke-width="6" fill="none" stroke-linecap="round"/>
-          <polygon points="64,28 68,38 58,36" fill="#22a94a"/>
-          <path d="M36 64 A28 28 0 0 1 8 36" stroke="url(#ringGradC)" stroke-width="6" fill="none" stroke-linecap="round"/>
-          <polygon points="8,44 4,34 14,36" fill="#22a94a"/>
-          <path d="M64 36 A28 28 0 0 1 36 64" stroke="url(#ringGradC)" stroke-width="6" fill="none" stroke-linecap="round"/>
-          <path d="M8 36 A28 28 0 0 1 36 8" stroke="url(#ringGradC)" stroke-width="6" fill="none" stroke-linecap="round"/>
-          <path d="M36 58 Q36 44 36 36" stroke="#1a8a38" stroke-width="2.5" stroke-linecap="round"/>
-          <path d="M36 44 Q26 38 24 28 Q32 26 36 36 Z" fill="url(#leafGradC)"/>
-          <path d="M36 44 Q46 38 48 28 Q40 26 36 36 Z" fill="url(#leafGradC)"/>
-          <path d="M36 36 Q30 28 31 20 Q38 22 36 32 Z" fill="#5dd96b"/>
-          <path d="M36 44 Q30 38 26 30" stroke="rgba(255,255,255,.4)" stroke-width="1" fill="none" stroke-linecap="round"/>
-          <path d="M36 44 Q42 38 46 30" stroke="rgba(255,255,255,.4)" stroke-width="1" fill="none" stroke-linecap="round"/>
-        </svg>
+        <img class="panel-brand-logo auth-brand-icon" width="72" height="72" src="/disbasura/assets/images/disbasura-logo.png" alt="DisBasura logo">
         <div class="auth-brand-text">
           <h1>DisBasura</h1>
           <p>Waste Management System</p>

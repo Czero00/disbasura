@@ -978,3 +978,54 @@
   .collectors-grid,
   .charts-grid  { grid-template-columns: 1fr !important; }
 }
+
+/* Shared small-screen safeguards for admin, resident, and leader pages. */
+@media (max-width: 768px) {
+  .app.active,
+  .res-layout { width: 100%; min-width: 0; }
+
+  .main,
+  .res-main { width: 100%; min-width: 0; }
+
+  .topbar { flex-wrap: wrap; min-height: 56px; }
+  .page-content,
+  .page-content.active { min-width: 0; overflow-x: hidden; }
+  .page-header,
+  .page-header-row { min-width: 0; max-width: 100%; }
+  .page-header h1 { font-size: clamp(1.25rem, 5vw, 1.55rem); line-height: 1.25; overflow-wrap: anywhere; }
+  .panel,
+  .request-card,
+  .chart-box { min-width: 0; max-width: 100%; }
+  .panel-header { flex-wrap: wrap; gap: .7rem; }
+
+  /* Profile forms use inline two-column grids on desktop. */
+  .res-main > div[style*="grid-template-columns:1fr 1fr"],
+  .page-content > div[style*="grid-template-columns:1fr 1fr"] { grid-template-columns: 1fr !important; }
+
+  .main img,
+  .res-main img,
+  .page-content img { max-width: 100%; height: auto; }
+  .main input,
+  .main select,
+  .main textarea,
+  .res-main input,
+  .res-main select,
+  .res-main textarea,
+  .page-content input,
+  .page-content select,
+  .page-content textarea { max-width: 100%; }
+
+  .main table,
+  .res-main table,
+  .page-content table { display: block; width: 100%; max-width: 100%; overflow-x: auto; white-space: nowrap; -webkit-overflow-scrolling: touch; }
+
+  #map { height: min(58vh, 380px) !important; min-height: 280px; }
+}
+
+@media (max-width: 380px) {
+  .stats-grid,
+  .reports-stats { grid-template-columns: 1fr !important; }
+  .stat-card { padding: 1rem; }
+  .page-content { padding: .8rem !important; }
+  .topbar { padding: .6rem .8rem !important; }
+}

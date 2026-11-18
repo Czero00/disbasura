@@ -6,7 +6,7 @@ $db=get_db(); $uid=$_SESSION['user_id'];
 $notifs=$db->prepare("SELECT * FROM notifications WHERE user_id=? ORDER BY created_at DESC"); $notifs->execute([$uid]); $notifs=$notifs->fetchAll();
 $db->prepare("UPDATE notifications SET is_read=1 WHERE user_id=?")->execute([$uid]);
 ?>
-<!DOCTYPE html><html lang="<?= e($leaderLangTag) ?>" class="<?= $leaderIsDark ? 'dark' : '' ?>"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/><title>Notifications — DisBasura</title><link rel="stylesheet" href="/disbasura/assets/css/base.css"/></head>
+<!DOCTYPE html><html lang="<?= e($leaderLangTag) ?>" class="<?= $leaderIsDark ? 'dark' : '' ?>"><head><link rel="icon" type="image/png" href="/disbasura/assets/images/disbasura-icon.png"><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/><title>DisBasura</title><link rel="stylesheet" href="/disbasura/assets/css/base.css"/></head>
 <body style="background:var(--bg-page);padding:1.5rem"><?php require __DIR__ . '/../includes/leader_preferences_controls.php'; ?>
 <div style="max-width:700px;margin:0 auto">
   <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:1.5rem"><a href="/disbasura/leader/dashboard.php" style="color:var(--text-mid);text-decoration:none">←</a><h1 style="font-family:'Plus Jakarta Sans',sans-serif;font-size:1.3rem;font-weight:800"><?= e($leaderT['notifications']) ?></h1></div>

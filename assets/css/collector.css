@@ -39,6 +39,7 @@ html, body {
   text-decoration: none;
 }
 .col-nav-brand svg { flex-shrink: 0; }
+.col-nav-brand .panel-brand-logo { width: 40px; height: 40px; }
 .col-nav-brand-text {
   font-family: 'Plus Jakarta Sans', sans-serif;
   font-size: 1.05rem;
@@ -386,6 +387,7 @@ html, body {
   .col-navbar { height:56px; padding:0 .85rem; gap:.6rem; }
   .col-nav-brand { gap:.45rem; min-width:0; }
   .col-nav-brand svg { width:30px; height:30px; }
+  .col-nav-brand .panel-brand-logo { width:32px; height:32px; }
   .col-nav-brand-text { font-size:.96rem; }
   .col-nav-brand-sub { font-size:.6rem; }
   .col-navbar > div { gap:.65rem !important; }
@@ -426,6 +428,21 @@ html, body {
   .item-row       { flex-direction:column;gap:.6rem; }
   .row-left       { flex-direction:row;flex-wrap:wrap;min-width:unset; }
   .panel-card-header { padding:.9rem 1rem; gap:.6rem; }
+  .panel-card-header { flex-wrap:wrap; }
+  .panel-card-title { min-width:0; overflow-wrap:anywhere; }
+  .item-row, .panel-card, .col-shell { min-width:0; }
+  .row-info { overflow-wrap:anywhere; }
+}
+
+@media (max-width: 360px) {
+  .col-navbar { padding:0 .6rem; }
+  .col-nav-brand { gap:.35rem; }
+  .col-nav-brand .panel-brand-logo { width:30px; height:30px; }
+  .col-nav-brand-text { font-size:.88rem; }
+  .col-signout { gap:.25rem; padding:.4rem .55rem; font-size:.68rem; }
+  .col-navbar > div { gap:.4rem !important; }
+  .stats-row { grid-template-columns:1fr; }
+  .stat-c { flex-direction:row; justify-content:flex-start; text-align:left; padding:.8rem; }
 }
 
 /* ── Nav badge (red pill) ── */

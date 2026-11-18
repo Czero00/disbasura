@@ -13,9 +13,9 @@ $dark   = $prefs['dark_mode'] ? 'dark' : '';
 ?>
 <!DOCTYPE html>
 <html lang="en" class="<?= $dark ?>">
-<head>
+<head><link rel="icon" type="image/png" href="/disbasura/assets/images/disbasura-icon.png">
   <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-  <title><?= $lang['live_tracker'] ?> — DisBasura</title>
+  <title>DisBasura</title>
   <link rel="stylesheet" href="/disbasura/assets/css/base.css"/>
   <link rel="stylesheet" href="/disbasura/assets/css/dashboard.css"/>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
@@ -61,13 +61,7 @@ $dark   = $prefs['dark_mode'] ? 'dark' : '';
   <aside class="res-sidebar">
     <div class="sidebar-brand">
       <div class="sidebar-brand-inner">
-        <svg viewBox="0 0 72 72" fill="none" width="36" height="36" xmlns="http://www.w3.org/2000/svg">
-          <defs><linearGradient id="resRingG3" x1="0" y1="0" x2="72" y2="72" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#5dd96b"/><stop offset="50%" stop-color="#22a94a"/><stop offset="100%" stop-color="#0d6e30"/></linearGradient></defs>
-          <path d="M36 8 A28 28 0 0 1 64 36" stroke="url(#resRingG3)" stroke-width="6" fill="none" stroke-linecap="round"/>
-          <path d="M36 64 A28 28 0 0 1 8 36" stroke="url(#resRingG3)" stroke-width="6" fill="none" stroke-linecap="round"/>
-          <path d="M64 36 A28 28 0 0 1 36 64" stroke="url(#resRingG3)" stroke-width="6" fill="none" stroke-linecap="round"/>
-          <path d="M8 36 A28 28 0 0 1 36 8" stroke="url(#resRingG3)" stroke-width="6" fill="none" stroke-linecap="round"/>
-        </svg>
+        <img class="panel-brand-logo" width="40" height="40" src="/disbasura/assets/images/disbasura-logo.png" alt="DisBasura logo">
         <div><h2>DisBasura</h2><p>Resident Portal</p></div>
       </div>
     </div>

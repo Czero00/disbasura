@@ -1,52 +1,66 @@
 <?php
 // ============================================================
-//  DisBasura — SMS Configuration (Semaphore API)
-//  Sign up free at: https://semaphore.co (Philippine SMS API)
-//  Free plan: 10 free credits to test
+//  DisBasura — SMS Configuration (TextBee)
+//  This file defines the shared send_sms() function used by the application.
+//  TextBee sends SMS through an Android phone connected to its gateway.
 // ============================================================
 
-// Keep provider credentials outside the project in ignored config/local.php or environment variables.
+// Load private local settings (including the TextBee key) when that file exists.
+// Alternatively, provide TEXTBEE_API_KEY as a server environment variable.
 $smsLocalConfig = __DIR__ . '/local.php';
 if (is_file($smsLocalConfig)) require_once $smsLocalConfig;
-$smsApiKey = getenv('SEMAPHORE_API_KEY') ?: (defined('SEMAPHORE_API_KEY') ? SEMAPHORE_API_KEY : (defined('SMS_API_KEY') ? SMS_API_KEY : ''));
-$smsSender = getenv('SEMAPHORE_SENDER_NAME') ?: (defined('SEMAPHORE_SENDER_NAME') ? SEMAPHORE_SENDER_NAME : (defined('SMS_SENDER_NAME') ? SMS_SENDER_NAME : 'DisBasura'));
-if (!defined('SMS_API_KEY')) define('SMS_API_KEY', $smsApiKey);
-if (!defined('SMS_SENDER_NAME')) define('SMS_SENDER_NAME', $smsSender);
-if (!defined('SMS_ENABLED')) define('SMS_ENABLED', SMS_API_KEY !== '' && SMS_API_KEY !== 'YOUR_SEMAPHORE_API_KEY_HERE');
 
+// Read the key from the environment first, then from a constant defined in local.php.
+$textBeeApiKey = getenv('TEXTBEE_API_KEY') ?: (defined('TEXTBEE_API_KEY') ? TEXTBEE_API_KEY : '');
+// Define the constant only if another included file has not already defined it.
+if (!defined('TEXTBEE_API_KEY')) define('TEXTBEE_API_KEY', $textBeeApiKey);
+// Enable sending only when a real key is configured; the example placeholder is disabled.
+if (!defined('SMS_ENABLED')) define('SMS_ENABLED', TEXTBEE_API_KEY !== '' && TEXTBEE_API_KEY !== 'YOUR_TEXTBEE_API_KEY_HERE');
+
+// Send one SMS. Returns true when TextBee accepts the message batch, false on failure.
 function send_sms(string $phone, string $message): bool {
+    // Stop if SMS is disabled or PHP's cURL extension is unavailable.
     if (!SMS_ENABLED || !function_exists('curl_init')) return false;
 
-    // Normalize Philippine mobile numbers to Semaphore's 63XXXXXXXXXX format.
+    // TextBee sends from the gateway SIM's number, so prefix the message with the app name.
+    $message = trim($message);
+    if ($message !== '' && !preg_match('/^DisBasura\s*:/i', $message)) {
+        $message = 'DisBasura: ' . $message;
+    }
+
+    // Remove punctuation/spaces, then convert 09XXXXXXXXX or 9XXXXXXXXX to country code 63.
     $phone = preg_replace('/\D/', '', $phone);
     if (strlen($phone) === 11 && $phone[0] === '0') {
         $phone = '63' . substr($phone, 1);
     } elseif (strlen($phone) === 10 && $phone[0] === '9') {
         $phone = '63' . $phone;
     }
+    // Accept only Philippine mobile numbers (639 followed by nine digits) and non-empty messages.
     if (!preg_match('/^639\d{9}$/', $phone) || trim($message) === '') return false;
 
+    // Track whether TextBee accepted the request; final cleanup below handles errors safely.
     $status = 'failed';
     $accepted = false;
-    $ch = curl_init('https://api.semaphore.co/api/v4/messages');
+    // Create the HTTP request to TextBee's send-SMS endpoint.
+    $ch = curl_init('https://api.textbee.dev/api/v1/gateway/send-sms');
     if ($ch === false) return false;
 
-    $payload = [
-        'apikey'  => SMS_API_KEY,
-        'number'  => $phone,
-        'message' => $message,
-    ];
-    // Semaphore uses the registered default sender if sendername is omitted.
-    // Only send an explicit sender name when one is configured locally.
-    if (trim(SMS_SENDER_NAME) !== '') {
-        $payload['sendername'] = trim(SMS_SENDER_NAME);
-    }
-
     try {
+        // Build the JSON body: one recipient in international format and the SMS text.
+        $payload = json_encode([
+            'recipients' => ['+' . $phone],
+            'message' => $message,
+        ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+
+        // Configure an HTTP POST with JSON, the API-key header, and connection time limits.
         curl_setopt_array($ch, [
             CURLOPT_POST           => true,
             CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_POSTFIELDS     => http_build_query($payload),
+            CURLOPT_HTTPHEADER     => [
+                'Content-Type: application/json',
+                'x-api-key: ' . TEXTBEE_API_KEY,
+            ],
+            CURLOPT_POSTFIELDS     => $payload,
             CURLOPT_CONNECTTIMEOUT => 10,
             CURLOPT_TIMEOUT        => 20,
         ]);
@@ -54,26 +68,32 @@ function send_sms(string $phone, string $message): bool {
         $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
         $curlError = curl_error($ch);
         curl_close($ch);
+        $ch = null;
 
         if ($response !== false && $httpCode >= 200 && $httpCode < 300) {
             $result = json_decode($response, true);
-            // Semaphore returns an array of per-message results for this endpoint.
-            if (is_array($result) && isset($result[0]) && is_array($result[0])) {
-                $providerStatus = strtolower((string) ($result[0]['status'] ?? ''));
-                if (in_array($providerStatus, ['queued', 'pending'], true)) {
-                    $status = 'pending';
-                    $accepted = true;
-                } elseif ($providerStatus === 'sent') {
-                    $status = 'sent';
-                    $accepted = true;
-                }
+            // HTTP success means TextBee accepted the batch; it does not confirm handset delivery.
+            // TextBee currently wraps send results in `data` (with a root-level fallback for compatibility).
+            $sendResult = is_array($result) && isset($result['data']) && is_array($result['data'])
+                ? $result['data']
+                : $result;
+            if (is_array($sendResult) && (
+                !empty($sendResult['smsBatchId']) ||
+                !empty($sendResult['success']) ||
+                (int)($sendResult['recipientCount'] ?? 0) > 0 ||
+                (int)($sendResult['successCount'] ?? 0) > 0
+            )) {
+                $status = 'pending';
+                $accepted = true;
             }
         } elseif ($curlError !== '') {
-            error_log('Semaphore SMS request failed: ' . $curlError);
+            error_log('TextBee SMS request failed: ' . $curlError);
+        } else {
+            error_log('TextBee SMS request failed with HTTP status ' . $httpCode);
         }
     } catch (Throwable $e) {
-        error_log('Semaphore SMS request failed: ' . $e->getMessage());
-        if (is_resource($ch) || $ch instanceof CurlHandle) curl_close($ch);
+        error_log('TextBee SMS request failed: ' . $e->getMessage());
+        if ($ch !== null) curl_close($ch);
     }
 
     // Logging must not turn a successfully accepted provider request into a failure.

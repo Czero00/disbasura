@@ -8,8 +8,8 @@ $db->prepare("UPDATE notifications SET is_read=1 WHERE user_id=?")->execute([$ui
 ?>
 <!DOCTYPE html>
 <html lang="en">
-<head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>Notifications — DisBasura</title>
+<head><link rel="icon" type="image/png" href="/disbasura/assets/images/disbasura-icon.png"><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>DisBasura</title>
 <link rel="stylesheet" href="/disbasura/assets/css/base.css"/>
 </head>
 <body style="background:var(--bg-page);padding:1.5rem">

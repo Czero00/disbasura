@@ -22,17 +22,15 @@
 3. Fill in your Name, Username, Email, Password
 4. Click Create Admin Account
 
-## SMS ALERT SETUP (OPTIONAL; SEMAPHORE APPROVAL AND CREDITS REQUIRED)
-1. Verify your Semaphore email and wait for the account to be approved for sending. Add credits before trying a live SMS. Semaphore's account and credit status are shown in its dashboard.
-2. Get the API key from the Semaphore dashboard. Use a sender name only after it is registered and approved; otherwise leave it empty to use the account's default sender.
-3. Add the settings to `config/local.php` (this file is ignored by Git) with:
+## SMS ALERT SETUP (OPTIONAL; TEXTBEE AND AN ANDROID PHONE REQUIRED)
+1. Create a TextBee account, register an Android phone as its gateway using TextBee's setup steps, and copy the gateway API key. The phone must have an active SIM/SMS plan, SMS permission, power, and internet access to send messages.
+2. Add the key to `config/local.php` (this file is ignored by Git) with:
    ```php
    <?php
-   define('SEMAPHORE_API_KEY', 'paste-your-api-key-here');
-   define('SEMAPHORE_SENDER_NAME', ''); // or your approved sender name
+   define('TEXTBEE_API_KEY', 'paste-your-textbee-api-key-here');
    ```
-4. SMS alerts are triggered by the existing announcement and collection-completion notification flows. Resident phone numbers saved at sign-up are used as SMS destinations. Use your own phone number for the first test.
-5. Without a valid API key, in-app notifications continue to work and SMS delivery remains disabled. Do not commit or share `config/local.php` or your API key.
+3. Make sure PHP cURL is enabled. SMS alerts use the phone numbers saved in resident accounts and are triggered by the existing notification flows. Use your own number for the first test.
+4. Without a valid TextBee API key or an online gateway phone, in-app notifications continue to work but SMS will not send. A successful API response means TextBee accepted the request, not that the SMS was delivered. Do not commit or share `config/local.php` or your API key.
 
 ## GPS ROUTE HISTORY AND FRESHNESS
 - Collector GPS updates are sampled into route history about every 30 seconds.

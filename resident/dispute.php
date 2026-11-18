@@ -89,8 +89,8 @@ if ($rid <= 0) {
 }
 ?>
 <!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>File a Dispute — DisBasura</title><link rel="stylesheet" href="/disbasura/assets/css/base.css"/><link rel="stylesheet" href="/disbasura/assets/css/resident-workflows.css"/></head>
+<html lang="en"><head><link rel="icon" type="image/png" href="/disbasura/assets/images/disbasura-icon.png"><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>DisBasura</title><link rel="stylesheet" href="/disbasura/assets/css/base.css"/><link rel="stylesheet" href="/disbasura/assets/css/resident-workflows.css"/></head>
 <body class="workflow-page"><div class="workflow-shell">
   <header class="workflow-top"><a class="workflow-brand" href="<?= $backUrl ?>"><span class="workflow-brand-mark">🍃</span><span><strong>DisBasura</strong><small>GARBAGE MANAGEMENT SYSTEM</small></span></a><a class="workflow-back" href="<?= $backUrl ?>">← Back</a></header>
   <main class="workflow-card">

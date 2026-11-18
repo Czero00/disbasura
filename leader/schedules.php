@@ -39,7 +39,7 @@ if ($feedbackUserColumn) {
 }
 $my_feedback_ids = array_column($my_feedback_ids->fetchAll(), 'schedule_id');
 ?>
-<!DOCTYPE html><html lang="<?= e($leaderLangTag) ?>" class="<?= $leaderIsDark ? 'dark' : '' ?>"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/><title>Sitio Schedule — DisBasura</title><link rel="stylesheet" href="/disbasura/assets/css/base.css"/><link rel="stylesheet" href="/disbasura/assets/css/dashboard.css"/></head>
+<!DOCTYPE html><html lang="<?= e($leaderLangTag) ?>" class="<?= $leaderIsDark ? 'dark' : '' ?>"><head><link rel="icon" type="image/png" href="/disbasura/assets/images/disbasura-icon.png"><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/><title>DisBasura</title><link rel="stylesheet" href="/disbasura/assets/css/base.css"/><link rel="stylesheet" href="/disbasura/assets/css/dashboard.css"/></head>
 <body style="background:var(--bg-page);padding:1.5rem"><?php require __DIR__ . '/../includes/leader_preferences_controls.php'; ?>
 <div style="max-width:800px;margin:0 auto">
   <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:1.5rem;flex-wrap:wrap">

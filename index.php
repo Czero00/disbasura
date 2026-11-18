@@ -81,7 +81,8 @@ $contactPending = !empty($_SESSION['contact_pending_id']);
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#001912">
-  <title>DisBasura — Smart Garbage Collection System</title>
+  <link rel="icon" type="image/png" href="/disbasura/assets/images/disbasura-icon.png">
+  <title>DisBasura</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -89,33 +90,30 @@ $contactPending = !empty($_SESSION['contact_pending_id']);
     :root{--green:#00a879;--green-dark:#003d2f;--mint:#6ce8b5;--ink:#f7fffb;--muted:#a7c8bc;--line:#123e34;--pale:#062e25}
     *{box-sizing:border-box;margin:0;padding:0}
     html{scroll-behavior:smooth;scroll-padding-top:82px}
-    body{font-family:'Plus Jakarta Sans',sans-serif;color:var(--ink);background:#042a21;-webkit-font-smoothing:antialiased}
+    body{font-family:'Plus Jakarta Sans',sans-serif;color:#18382d;background:#f4faf6;-webkit-font-smoothing:antialiased}
     a{color:inherit;text-decoration:none}
     .container{width:min(1220px,calc(100% - 60px));margin:auto}
-    .site-header{height:92px;background:rgba(0,25,18,.97);border-bottom:1px solid #104438;position:sticky;top:0;z-index:10;backdrop-filter:blur(12px)}
+    .site-header{height:92px;background:rgba(255,255,255,.94);border-bottom:1px solid #e4efe8;position:sticky;top:0;z-index:10;backdrop-filter:blur(14px);box-shadow:0 8px 24px rgba(18,62,43,.045)}
     .nav{height:100%;display:flex;align-items:center;justify-content:space-between;gap:20px}
-    .brand{display:flex;align-items:center;gap:10px;min-width:250px;padding:7px 14px;border:1px solid #0c6654;border-radius:18px;background:#071a20}
-    .brand-mark{width:40px;height:40px;display:grid;place-items:center;border-radius:12px;color:white;background:linear-gradient(145deg,#10c993,#007c5b);box-shadow:0 5px 12px #00a87935}
-    .brand-mark svg{width:24px;height:24px}
-    .brand>.brand-mark svg path:first-child{fill:currentColor}
-    .brand-name{font-size:21px;line-height:1.15;font-weight:800;letter-spacing:-.8px;color:#f7fffb}
-    .brand-tag{display:block;color:#44bd98;font-size:10px;font-weight:800;letter-spacing:.35px;text-transform:uppercase;margin-top:2px}
-    .nav-links{display:flex;align-items:center;gap:10px;padding:6px;border:1px solid #152c3c;border-radius:17px;background:#030f19;color:#c3cfdb;font-weight:800;font-size:13px}
+    .brand{display:flex;align-items:center;gap:10px;min-width:250px;padding:7px 8px;border:1px solid transparent;border-radius:18px;background:transparent}
+    .brand-mark{width:56px;height:56px;display:block;flex:none;object-fit:contain;border-radius:0;background:transparent;box-shadow:none}
+    .brand-name{font-size:21px;line-height:1.15;font-weight:800;letter-spacing:-.8px;color:#143b30}
+    .brand-tag{display:block;color:#16865f;font-size:10px;font-weight:800;letter-spacing:.35px;text-transform:uppercase;margin-top:2px}
+    .nav-links{display:flex;align-items:center;gap:6px;padding:5px;border:1px solid transparent;border-radius:17px;background:transparent;color:#435c50;font-weight:800;font-size:13px}
     .nav-links a,.nav-actions a{transition:color .18s,background .18s,border-color .18s,transform .18s}
-    .nav-links a{padding:10px 23px;border:1px solid transparent;border-radius:14px;background:transparent}
-    .nav-links a:hover,.nav-links a:focus-visible,.nav-links a.active{color:#21d6a1;border-color:#087c61;background:#002c24}
-    .nav-actions{display:flex;align-items:center;gap:12px;font-size:13px;font-weight:800;color:#d8e4e0}
-    .login-link{padding:10px 20px;border:1px solid #0c6654;border-radius:14px;background:#071a20}
-    .login-link:hover{color:#54e3b2;background:#0a3028}
-    .signup{padding:10px 23px;border:1px solid #10b888;border-radius:14px;background:#069b70;color:white;box-shadow:0 5px 14px #00a87935}
+    .nav-links a{padding:10px 19px;border:1px solid transparent;border-radius:14px;background:transparent}
+    .nav-links a:hover,.nav-links a:focus-visible,.nav-links a.active{color:#087a55;border-color:#d8f1e3;background:#effaf3}
+    .nav-actions{display:flex;align-items:center;gap:12px;font-size:13px;font-weight:800;color:#315044}
+    .login-link{padding:10px 20px;border:1px solid #d3e7da;border-radius:999px;background:#fff}
+    .login-link:hover{color:#087a55;background:#effaf3}
+    .signup{padding:10px 23px;border:1px solid #0eaa73;border-radius:999px;background:linear-gradient(110deg,#19bd82,#079d6d);color:white;box-shadow:0 7px 18px rgba(0,168,121,.2)}
     .signup:hover,.button-primary:hover{background:#08b985;transform:translateY(-1px)}
-    .menu-toggle{display:none;border:0;background:#0a8d68;border-radius:10px;color:white;font-size:25px;cursor:pointer}
+    .menu-toggle{display:none;border:0;background:#0a9f70;border-radius:10px;color:white;font-size:25px;cursor:pointer}
     .login-modal{position:fixed;inset:0;z-index:30;display:none;place-items:center;padding:20px;background:linear-gradient(180deg,rgba(0,25,29,.9) 0%,rgba(4,25,31,.88) 53%,rgba(67,70,82,.91) 54%,rgba(67,70,82,.91) 100%);backdrop-filter:blur(8px)}
     .login-modal.open{display:grid}
     .login-dialog{position:relative;width:min(100%,505px);padding:36px 38px;background:#fbfbfc;border:1px solid rgba(255,255,255,.72);border-radius:28px;box-shadow:0 28px 80px #061d1845;color:#111a30}
     .login-brand{display:flex;align-items:center;gap:13px;margin-bottom:28px}
-    .login-brand .brand-mark{width:48px;height:48px;flex:none}
-    .login-brand .brand-mark svg path:first-child{fill:currentColor}
+    .login-brand .brand-mark{width:56px;height:56px;flex:none}
     .login-brand-copy{display:flex;flex-direction:column;align-items:flex-start;gap:2px}
     .login-brand-name{font-size:20px;line-height:1.2;font-weight:800;letter-spacing:-.5px;color:#111a30}
     .login-brand-title{display:block;font-size:13px;line-height:1.35;color:#8799b3}
@@ -139,51 +137,67 @@ $contactPending = !empty($_SESSION['contact_pending_id']);
     .login-error{padding:10px 12px;border-radius:9px;background:#fff0f0;color:#b42318;font-size:13px;margin-bottom:12px}
     .login-success{padding:10px 12px;border-radius:9px;background:#e9f8ef;color:#167347;font-size:13px;margin-bottom:12px}
     body.modal-open{overflow:hidden}
-    .hero{min-height:576px;background:radial-gradient(ellipse at 50% 30%,#064734 0%,#00382b 55%,#00251c 100%);color:white;display:grid;place-items:center;text-align:center;padding:70px 24px;position:relative;overflow:hidden}
-    .hero:before{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,14,10,.04),rgba(0,14,10,.2));pointer-events:none}
-    .hero-content{position:relative;max-width:900px}
+    .hero{min-height:620px;background:radial-gradient(ellipse at 78% 34%,rgba(79,210,147,.12),transparent 37%),linear-gradient(125deg,#fff 0%,#fbfefc 48%,#f2faf5 100%);color:#173d30;display:grid;align-items:center;padding:76px 24px;position:relative;isolation:isolate;overflow:hidden}
+    .hero:before{content:"";position:absolute;inset:0;background:radial-gradient(circle at 12% 22%,rgba(21,155,102,.065),transparent 25%),radial-gradient(circle at 88% 55%,rgba(62,192,127,.09),transparent 30%);pointer-events:none;z-index:-1}
+    .hero:after{content:"";position:absolute;z-index:-1;left:-4%;right:-4%;bottom:-19%;height:42%;border-radius:50% 50% 0 0 / 34% 34% 0 0;background:linear-gradient(110deg,#e1f5e8 0%,#c9efd7 52%,#e9f8ed 100%);transform:rotate(-2deg);pointer-events:none}
+    .hero-layout{position:relative;z-index:1;width:min(1220px,100%);margin:auto;display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr);align-items:center;gap:34px}
+    .hero-content{position:relative;z-index:2;max-width:650px;text-align:left}
+    .hero-art{position:relative;display:flex;align-items:center;justify-content:center;min-width:0}
+    .hero-art:before{content:"";position:absolute;inset:14% 5%;border-radius:50%;background:radial-gradient(ellipse,rgba(92,220,150,.3),rgba(93,197,132,.1) 48%,rgba(34,191,128,0) 72%);filter:blur(28px)}
+    .hero-art img{position:relative;z-index:1;display:block;width:100%;max-width:620px;height:auto;filter:drop-shadow(0 28px 38px rgba(31,87,57,.2));animation:hero-float 6s ease-in-out infinite;transition:filter .25s,transform .25s}
+    .hero-art:hover img{transform:translateY(-5px) scale(1.015);filter:drop-shadow(0 34px 44px rgba(31,87,57,.27))}
+    .hero-kicker{display:inline-flex;align-items:center;gap:10px;margin-bottom:24px;padding:9px 14px;border:1px solid #d7eee0;border-radius:999px;background:rgba(240,250,244,.9);color:#187c56;font-size:11px;font-weight:800;letter-spacing:1.15px;text-transform:uppercase;box-shadow:0 5px 18px rgba(42,111,72,.07);backdrop-filter:blur(10px)}
+    .hero-kicker-dot{width:8px;height:8px;border-radius:50%;background:#39e1a6;box-shadow:0 0 0 4px rgba(57,225,166,.14),0 0 16px rgba(57,225,166,.8);animation:kicker-pulse 2s ease-in-out infinite}
+    @keyframes hero-float{0%,100%{transform:translateY(0)}50%{transform:translateY(-9px)}}
+    @keyframes kicker-pulse{0%,100%{box-shadow:0 0 0 4px rgba(57,225,166,.12),0 0 12px rgba(57,225,166,.55)}50%{box-shadow:0 0 0 7px rgba(57,225,166,.04),0 0 20px rgba(57,225,166,.9)}}
     .badge{display:inline-flex;align-items:center;gap:9px;color:#67e7b7;border:1px solid #155a4c;background:#071e22;border-radius:30px;padding:11px 21px;font-size:13px;font-weight:800;margin-bottom:38px}
     .badge-dot{width:8px;height:8px;background:#16a878;border-radius:50%}
-    .hero h1{font-size:clamp(46px,7vw,72px);font-weight:800;letter-spacing:-3.8px;line-height:.94;margin-bottom:27px}
-    .hero h1 span{display:block;color:#73e5b8;margin-top:5px}
-    .hero p{font-size:19px;line-height:1.55;color:#b3d1c8;max-width:700px;margin:0 auto 43px}
-    .hero-buttons{display:flex;justify-content:center;gap:16px}
-    .button{display:inline-flex;align-items:center;justify-content:center;border-radius:12px;padding:17px 32px;min-width:156px;font-size:15px;font-weight:700;transition:background .18s,transform .18s}
+    .hero h1{font-size:clamp(44px,5.1vw,68px);font-weight:800;letter-spacing:-3.2px;line-height:1.12;margin:0 0 25px;padding:0 0 .08em;overflow:visible;color:#173d30}
+    .hero h1 span{display:block;margin-top:2px;background:linear-gradient(95deg,#168b5d 0%,#05aa72 52%,#39bd84 100%);background-clip:text;-webkit-background-clip:text;color:transparent}
+    .hero p{font-size:18px;line-height:1.65;color:#557466;max-width:570px;margin:0 0 34px}
+    .hero-buttons{display:flex;justify-content:flex-start;gap:14px}
+    .button{display:inline-flex;align-items:center;justify-content:center;border-radius:14px;padding:17px 32px;min-width:156px;font-size:15px;font-weight:750;transition:background .2s,transform .2s,box-shadow .2s,border-color .2s}
     .button:hover{transform:translateY(-2px)}
-    .button-primary{background:linear-gradient(110deg,#38d6a0,#08b986);color:#06281f}
-    .button-secondary{border:1px solid #145648;background:#091a24;color:white}
-    .button-secondary:hover{background:#102a32}
+    .button-primary{background:linear-gradient(110deg,#25c98a,#079c6d);color:#fff;box-shadow:0 12px 28px rgba(14,160,105,.22),inset 0 1px rgba(255,255,255,.35)}
+    .button-primary:hover{box-shadow:0 16px 34px rgba(14,160,105,.3),inset 0 1px rgba(255,255,255,.5)}
+    .button-secondary{border:1px solid #d6e9dc;background:rgba(255,255,255,.82);color:#24533e;box-shadow:0 6px 18px rgba(26,82,52,.06);backdrop-filter:blur(8px)}
+    .button-secondary:hover{background:#f0faf3;border-color:#bde4ca}
     .section{padding:96px 0}
-    .section-heading{text-align:center;max-width:610px;margin:0 auto 62px}
-    .eyebrow{color:var(--green);font-size:13px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;margin-bottom:10px}
+    .section-heading{text-align:center;max-width:700px;margin:0 auto 58px}
+    .eyebrow{display:inline-flex;align-items:center;gap:8px;color:#13845b;font-size:12px;font-weight:800;letter-spacing:1px;text-transform:uppercase;margin-bottom:13px}
     h2{font-size:36px;line-height:1.2;letter-spacing:-1.2px;font-weight:800}
-    .section-intro{font-size:16px;line-height:1.65;color:var(--muted);margin-top:12px}
-    .workflow,.about{color:#14231d}
-    .features{background:#032b22;color:#f7fffb}
-    .workflow{background:#fff}
-    .workflow h2,.about h2,.step h3,.feature-card h3{color:#14231d}
-    .features h2{color:#f7fffb}
-    .features .eyebrow{color:#39dca7}
-    .steps{display:grid;grid-template-columns:repeat(4,1fr);gap:32px}
-    .step{min-height:269px;border:1px solid var(--line);background:#f8fafc;border-radius:24px;padding:32px 27px;text-align:center;box-shadow:0 2px 3px #0f172a08}
-    .step-number{height:48px;width:48px;border-radius:15px;background:#d1fae8;color:#087456;display:grid;place-items:center;font-size:17px;font-weight:800;margin:0 auto 26px}
+    .section-intro{font-size:16px;line-height:1.7;color:#617b6e;margin-top:13px}
+    .workflow,.about{color:#17392b}
+    .workflow{position:relative;overflow:hidden;background:linear-gradient(180deg,#fbfefc 0%,#eff9f2 100%)}
+    .workflow:before{content:"";position:absolute;width:420px;height:420px;border-radius:50%;right:-210px;top:-200px;background:radial-gradient(circle,#bcebd0 0%,rgba(188,235,208,0) 70%);pointer-events:none}
+    .workflow .container{position:relative;z-index:1}
+    .workflow .eyebrow,.about .eyebrow{padding:8px 13px;border:1px solid #cdebd8;border-radius:999px;background:#f0fbf4}
+    .workflow h2,.about h2,.step h3,.feature-card h3{color:#17392b}
+    .steps{display:grid;grid-template-columns:repeat(4,1fr);gap:22px}
+    .step{position:relative;min-height:270px;overflow:hidden;border:1px solid #d9ede0;background:rgba(255,255,255,.94);border-radius:24px;padding:32px 27px;text-align:center;box-shadow:0 12px 30px rgba(24,83,51,.07);transition:transform .22s ease,box-shadow .22s ease,border-color .22s ease}
+    .step:before{content:"";position:absolute;inset:0 0 auto;height:4px;background:linear-gradient(90deg,#18a66d,#87d89f)}
+    .step:hover{transform:translateY(-6px);border-color:#a9ddbd;box-shadow:0 20px 38px rgba(24,83,51,.13)}
+    .step-number{height:54px;width:54px;border-radius:18px;background:linear-gradient(145deg,#dcf8e6,#c7f0d5);color:#08764f;display:grid;place-items:center;font-size:18px;font-weight:850;margin:0 auto 25px;box-shadow:inset 0 0 0 1px #b8e7c9}
     .step h3,.feature-card h3{font-size:19px;letter-spacing:-.4px;margin-bottom:12px}
-    .step p,.feature-card p{font-size:14px;line-height:1.62;color:#61718a}
-    .about{background:#f6f9fb;border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:104px 0}
+    .step p,.feature-card p{font-size:14px;line-height:1.7;color:#5b7467}
+    .about{position:relative;background:linear-gradient(140deg,#f0f8f2 0%,#f9fcf8 52%,#e8f5eb 100%);border-top:1px solid #dceee1;border-bottom:1px solid #dceee1;padding:104px 0}
     .about-grid{display:grid;grid-template-columns:1.04fr 1fr;gap:48px;align-items:center}
     .about-copy h2{max-width:550px;margin-bottom:22px}
-    .about-copy>p{font-size:15.5px;line-height:1.68;color:#5b6b84}
-    .stats{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:26px;border-top:1px solid var(--line);padding-top:24px}
-    .stat strong{display:block;color:var(--green);font-size:30px;letter-spacing:-1px}
-    .stat span{color:#52627a;font-size:14px}
-    .about-panel{min-height:356px;padding:40px;border-radius:24px;background:linear-gradient(140deg,#075744,#096151);color:#fff;box-shadow:0 18px 28px #052e201c;display:flex;flex-direction:column;justify-content:center}
-    .shield{width:56px;height:56px;border:1px solid #16806a;border-radius:15px;color:#71e4b7;background:#08725a;display:grid;place-items:center;margin-bottom:27px}
+    .about-copy>p{font-size:15.5px;line-height:1.75;color:#587365}
+    .stats{display:grid;grid-template-columns:1fr 1fr;gap:13px;margin-top:27px;border:0;padding:0}
+    .stat{padding:17px 18px;border:1px solid #d7ebdd;border-radius:17px;background:rgba(255,255,255,.78)}
+    .stat strong{display:block;color:#118356;font-size:29px;letter-spacing:-1px}
+    .stat span{color:#587365;font-size:13px;line-height:1.45}
+    .about-panel{position:relative;overflow:hidden;min-height:356px;padding:42px;border:1px solid rgba(255,255,255,.17);border-radius:28px;background:radial-gradient(circle at 100% 0%,rgba(88,205,144,.3),transparent 38%),linear-gradient(140deg,#075744,#064333);color:#fff;box-shadow:0 24px 48px rgba(5,62,39,.19);display:flex;flex-direction:column;justify-content:center}
+    .about-panel:after{content:"";position:absolute;width:200px;height:200px;border:1px solid rgba(167,232,190,.16);border-radius:50%;right:-82px;bottom:-110px;box-shadow:0 0 0 22px rgba(167,232,190,.04),0 0 0 45px rgba(167,232,190,.03)}
+    .shield{width:58px;height:58px;border:1px solid #309978;border-radius:18px;color:#a7f1c4;background:linear-gradient(145deg,#0c8061,#08604b);display:grid;place-items:center;margin-bottom:27px;box-shadow:0 8px 20px rgba(0,0,0,.16)}
     .shield svg{width:28px;height:28px}
     .about-panel h3{font-size:24px;line-height:1.32;letter-spacing:-.5px;margin-bottom:14px}
     .about-panel p{font-size:14px;line-height:1.7;color:#c5dfd7}
     .panel-foot{color:#78dfb7!important;font-weight:700;margin-top:25px}
     .team-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;width:min(100%,1160px);margin:42px auto 0}
-    .team-card{display:flex;align-items:center;gap:18px;min-width:0;padding:22px;border:1px solid var(--line);border-radius:22px;background:#fff;box-shadow:0 12px 28px #102b2410}
+    .team-card{display:flex;align-items:center;gap:18px;min-width:0;padding:22px;border:1px solid #d9ebe0;border-radius:22px;background:rgba(255,255,255,.92);box-shadow:0 12px 28px rgba(20,66,43,.08);transition:transform .2s ease,box-shadow .2s ease}
+    .team-card:hover{transform:translateY(-4px);box-shadow:0 18px 34px rgba(20,66,43,.13)}
     .team-photo{width:112px;height:112px;flex:0 0 112px;object-fit:cover;object-position:center 38%;border:4px solid #d9f5e9;border-radius:50%;background:#eaf4ef}
     .team-details .eyebrow{margin-bottom:7px}
     .team-details h3{margin:0;color:#14231d;font-size:21px;line-height:1.3;letter-spacing:-.4px}
@@ -192,50 +206,60 @@ $contactPending = !empty($_SESSION['contact_pending_id']);
     .team-achievement-copy{display:grid;gap:2px;min-width:0}
     .team-achievement-copy strong{font-size:12px;font-weight:850;white-space:nowrap}
     .team-achievement-copy span{font-size:11px;font-weight:650;line-height:1.3}
-    .features{padding:96px 0}
-    .feature-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:32px}
-    .feature-card{border:1px solid var(--line);background:#f8fafc;border-radius:24px;min-height:247px;padding:32px;box-shadow:0 2px 3px #0f172a08}
-    .feature-icon{width:48px;height:48px;border-radius:13px;background:#d1fae8;color:#07845f;display:grid;place-items:center;margin-bottom:27px}
+    .features{position:relative;overflow:hidden;padding:100px 0;background:linear-gradient(180deg,#f8fcf8 0%,#eaf6ed 100%);color:#17392b}
+    .features:before{content:"";position:absolute;width:380px;height:380px;border-radius:50%;left:-220px;bottom:-220px;background:radial-gradient(circle,#c9efd4 0%,rgba(201,239,212,0) 70%);pointer-events:none}
+    .features .container{position:relative;z-index:1}
+    .features h2{color:#17392b}
+    .features .eyebrow{color:#13845b;padding:8px 13px;border:1px solid #cdebd8;border-radius:999px;background:#f0fbf4}
+    .feature-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:22px}
+    .feature-card{position:relative;overflow:hidden;border:1px solid #d9ede0;background:rgba(255,255,255,.95);border-radius:24px;min-height:247px;padding:32px;box-shadow:0 12px 30px rgba(24,83,51,.07);transition:transform .22s ease,box-shadow .22s ease,border-color .22s ease}
+    .feature-card:after{content:"";position:absolute;width:120px;height:120px;right:-65px;top:-65px;border-radius:50%;background:#e9f8ed;transition:transform .25s ease}
+    .feature-card:hover{transform:translateY(-6px);border-color:#a9ddbd;box-shadow:0 20px 38px rgba(24,83,51,.13)}
+    .feature-card:hover:after{transform:scale(1.35)}
+    .feature-icon{position:relative;z-index:1;width:52px;height:52px;border-radius:17px;background:linear-gradient(145deg,#dff8e8,#c6efd4);color:#08764f;display:grid;place-items:center;margin-bottom:27px;box-shadow:inset 0 0 0 1px #b8e7c9}
     .feature-icon svg{width:22px;height:22px}
-    .contact{background:#f4f8f6;color:#132035;padding:82px 20px}
-    .contact-card{width:min(100%,670px);margin:auto;padding:40px;border:1px solid #edf1f4;border-radius:24px;background:#fff;box-shadow:0 18px 32px #102b2417}
+    .contact{position:relative;overflow:hidden;background:linear-gradient(145deg,#eaf6ed,#f8fcf8 60%,#e3f3e8);color:#17392b;padding:94px 20px}
+    .contact:before,.contact:after{content:"";position:absolute;width:250px;height:250px;border:1px solid rgba(20,132,91,.11);border-radius:50%;pointer-events:none}
+    .contact:before{left:-140px;top:-120px;box-shadow:0 0 0 22px rgba(20,132,91,.025),0 0 0 48px rgba(20,132,91,.02)}
+    .contact:after{right:-140px;bottom:-150px;box-shadow:0 0 0 22px rgba(20,132,91,.025),0 0 0 48px rgba(20,132,91,.02)}
+    .contact-card{position:relative;z-index:1;width:min(100%,720px);margin:auto;padding:44px;border:1px solid #d8ebde;border-top:4px solid #18a66d;border-radius:26px;background:rgba(255,255,255,.97);box-shadow:0 24px 55px rgba(24,83,51,.12)}
     .contact-head{text-align:center;margin-bottom:30px}
-    .contact-badge{display:inline-block;margin-bottom:12px;padding:7px 14px;border-radius:20px;background:#d4f9e8;color:#07845f;font-size:11px;font-weight:800;letter-spacing:.7px}
-    .contact-head h2{font-size:30px;color:#101a30}
-    .contact-head p{max-width:500px;margin:9px auto 0;color:#61718a;font-size:14px;line-height:1.55}
+    .contact-badge{display:inline-flex;align-items:center;margin-bottom:13px;padding:8px 14px;border:1px solid #cdebd8;border-radius:20px;background:#effaf3;color:#08764f;font-size:11px;font-weight:850;letter-spacing:.9px}
+    .contact-head h2{font-size:32px;color:#17392b}
+    .contact-head p{max-width:500px;margin:10px auto 0;color:#5b7467;font-size:14px;line-height:1.7}
     .contact-alert{margin:0 0 18px;padding:12px 14px;border-radius:11px;font-size:13px;line-height:1.5}
     .contact-alert.success{background:#e9f8ef;color:#167347}
     .contact-alert.error{background:#fff0f0;color:#b42318}
     .contact-form{display:grid;gap:16px}
-    .contact-field{display:grid;gap:7px;color:#34445d;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.25px}
-    .contact-field input,.contact-field textarea{width:100%;border:1px solid #dce4ee;border-radius:12px;background:#fff;padding:13px 15px;color:#172033;font:500 14px 'Plus Jakarta Sans',sans-serif;outline:none;transition:border-color .18s,box-shadow .18s}
+    .contact-field{display:grid;gap:8px;color:#385647;font-size:11px;font-weight:850;text-transform:uppercase;letter-spacing:.45px}
+    .contact-field input,.contact-field textarea{width:100%;border:1px solid #d8e9dd;border-radius:13px;background:#fbfefb;padding:13px 15px;color:#17392b;font:500 14px 'Plus Jakarta Sans',sans-serif;outline:none;transition:border-color .18s,box-shadow .18s,background .18s}
     .contact-field input{height:47px}
     .contact-field textarea{min-height:105px;resize:vertical}
-    .contact-field input::placeholder,.contact-field textarea::placeholder{color:#94a2b8;font-weight:400}
+    .contact-field input::placeholder,.contact-field textarea::placeholder{color:#91a99a;font-weight:400}
     .contact-field input:focus,.contact-field textarea:focus{border-color:#00a879;box-shadow:0 0 0 3px #00a8791c}
-    .contact-submit{height:52px;border:0;border-radius:12px;background:#06271e;color:#fff;font:800 14px 'Plus Jakarta Sans',sans-serif;cursor:pointer;box-shadow:0 3px 6px #061d1830;transition:background .18s,transform .18s}
-    .contact-submit:hover{background:#07845f;transform:translateY(-1px)}
+    .contact-submit{height:53px;border:0;border-radius:14px;background:linear-gradient(110deg,#20b979,#07885b);color:#fff;font:800 14px 'Plus Jakarta Sans',sans-serif;cursor:pointer;box-shadow:0 10px 22px rgba(14,145,87,.2),inset 0 1px rgba(255,255,255,.3);transition:filter .18s,transform .18s,box-shadow .18s}
+    .contact-submit:hover{filter:brightness(1.04);transform:translateY(-2px);box-shadow:0 14px 26px rgba(14,145,87,.25)}
     footer{background:#10182e;color:#fff;padding:32px 0}
     .footer-row{display:flex;align-items:center;justify-content:space-between;gap:24px}
     .footer-brand{display:flex;align-items:center;gap:12px;font-weight:700}
-    .footer-brand .brand-mark{height:32px;width:32px}
+    .footer-brand .brand-mark{height:48px;width:48px}
     .copyright{color:#77839c;font-size:12px;text-align:center}
     .footer-links{display:flex;gap:26px;color:#a0aec1;font-size:13px;font-weight:700}
-    @media(max-width:900px){.brand{min-width:auto;padding:8px 12px}.nav-links{gap:7px;padding:6px}.nav-links a{padding:11px 16px}.nav-actions{gap:9px}.steps{grid-template-columns:repeat(2,1fr)}.about-grid{gap:30px}.feature-grid{gap:18px}.feature-card{padding:25px}}
+    @media(max-width:900px){.brand{min-width:auto;padding:8px 12px}.nav-links{gap:7px;padding:6px}.nav-links a{padding:11px 16px}.nav-actions{gap:9px}.hero-layout{grid-template-columns:minmax(0,1fr) minmax(270px,.85fr);gap:24px}.hero h1{font-size:clamp(42px,5.3vw,58px);letter-spacing:-2.8px}.hero p{font-size:16px}.hero-buttons{flex-wrap:wrap}.steps{grid-template-columns:repeat(2,1fr)}.about-grid{gap:30px}.feature-grid{gap:18px}.feature-card{padding:25px}}
     @media(max-width:520px){.login-modal{padding:14px}.login-dialog{padding:30px 24px;border-radius:23px;max-height:calc(100vh - 28px);overflow-y:auto}.login-brand{margin-bottom:24px}.login-close{right:18px;top:18px}.login-heading{font-size:25px}}
     @media(max-width:650px){.contact{padding:64px 15px}.contact-card{padding:29px 22px;border-radius:20px}.contact-head h2{font-size:27px}}
-    @media(max-width:650px){.container{width:min(100% - 30px,1220px)}.site-header{height:82px}.brand{gap:9px;padding:6px 9px;border-radius:15px}.brand-mark{width:38px;height:38px}.brand-name{font-size:18px}.brand-tag{font-size:8px}.menu-toggle{display:block;margin-left:auto;width:40px;height:40px}.nav{gap:8px}.nav-links{display:none;position:absolute;left:15px;right:15px;top:75px;background:#031b16;padding:14px;border:1px solid #124437;border-radius:16px;flex-direction:column;align-items:stretch;gap:8px}.nav-links.open{display:flex}.nav-links a{text-align:center}.nav-actions{gap:7px;font-size:12px}.login-link{padding:9px 12px}.signup{padding:9px 13px}.hero{min-height:590px;padding:72px 18px}.badge{font-size:10px;padding:9px 13px;margin-bottom:30px}.hero h1{font-size:clamp(39px,11vw,58px);letter-spacing:-2.6px;line-height:.98}.hero p{font-size:15px}.hero-buttons{gap:10px}.button{min-width:0;padding:14px 18px;font-size:13px}.section,.features{padding:72px 0}.section-heading{margin-bottom:38px}h2{font-size:30px}.steps,.feature-grid{grid-template-columns:1fr}.step{min-height:0;padding:27px 24px}.about{padding:76px 0}.about-grid{grid-template-columns:1fr}.about-panel{min-height:310px;padding:30px}.footer-row{flex-direction:column;text-align:center}.footer-links{order:3}.copyright{order:2;line-height:1.6}}
+    @media(max-width:650px){.container{width:min(100% - 30px,1220px)}.site-header{height:82px}.brand{gap:9px;padding:6px 9px;border-radius:15px}.brand-mark{width:48px;height:48px}.brand-name{font-size:18px}.brand-tag{font-size:8px}.menu-toggle{display:block;margin-left:auto;width:40px;height:40px}.nav{gap:8px}.nav-links{display:none;position:absolute;left:15px;right:15px;top:75px;background:rgba(255,255,255,.98);padding:14px;border:1px solid #dceee2;border-radius:16px;box-shadow:0 18px 38px rgba(22,69,43,.14);flex-direction:column;align-items:stretch;gap:8px}.nav-links.open{display:flex}.nav-links a{text-align:center}.nav-actions{gap:7px;font-size:12px}.login-link{padding:9px 12px}.signup{padding:9px 13px}.hero{min-height:0;padding:68px 0 54px}.hero-layout{width:min(100% - 30px,600px);grid-template-columns:1fr;gap:28px}.hero-content{text-align:center;margin:0 auto}.hero-art img{width:min(100%,520px)}.badge{font-size:10px;padding:9px 13px;margin-bottom:30px}.hero h1{font-size:clamp(39px,11vw,58px);letter-spacing:-2.6px;line-height:1.12;padding-bottom:.08em}.hero p{font-size:15px;margin:0 auto 28px}.hero-buttons{justify-content:center;gap:10px}.button{min-width:0;padding:14px 18px;font-size:13px}.section,.features{padding:72px 0}.section-heading{margin-bottom:38px}h2{font-size:30px}.steps,.feature-grid{grid-template-columns:1fr}.step{min-height:0;padding:27px 24px}.about{padding:76px 0}.about-grid{grid-template-columns:1fr}.about-panel{min-height:310px;padding:30px}.footer-row{flex-direction:column;text-align:center}.footer-links{order:3}.copyright{order:2;line-height:1.6}}
     @media(max-width:1050px){.team-grid{grid-template-columns:repeat(2,minmax(0,1fr));width:min(100%,980px)}}
     @media(max-width:900px){.team-card{padding:18px;gap:15px}.team-photo{width:96px;height:96px;flex-basis:96px}}
     @media(max-width:650px){.team-grid{grid-template-columns:1fr;margin-top:30px}.team-card{gap:15px;padding:18px}.team-photo{width:88px;height:88px;flex-basis:88px}.team-details h3{font-size:18px}.team-role{font-size:13px}.team-achievement{font-size:11px;padding:6px 9px}}
-    @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*:before,*:after{transition:none!important}}
+    @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*:before,*:after{transition:none!important;animation:none!important}}
   </style>
 </head>
 <body>
 <header class="site-header">
   <div class="container nav">
     <a class="brand" href="#home" aria-label="DisBasura home">
-      <span class="brand-mark"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M20 4c-7.6.3-12 2.7-12 7.1 0 2.5 1.8 4.1 4.2 4.1C17 15.2 20.6 10.5 20 4Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M4 20c1-5.1 4-8.1 9-9.7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></span>
+      <img class="brand-mark" src="/disbasura/assets/images/disbasura-logo.png" alt="DisBasura logo">
       <span><span class="brand-name">DisBasura</span><span class="brand-tag">Smart Garbage Collection</span></span>
     </a>
     <button class="menu-toggle" aria-label="Toggle navigation" aria-expanded="false">☰</button>
@@ -245,10 +269,14 @@ $contactPending = !empty($_SESSION['contact_pending_id']);
 </header>
 <main>
   <section class="hero" id="home">
-    <div class="hero-content">
-      <h1>Smart &amp; Efficient<span>Garbage Collection</span><span>System</span></h1>
-      <p>A centralized barangay-level waste collection platform connecting administrators, sitio residents, and truck collectors seamlessly.</p>
-      <div class="hero-buttons"><a class="button button-primary" href="<?= $registrationEnabled ? '/disbasura/register.php' : '/disbasura/admin/setup.php' ?>"><?= $registrationEnabled ? 'Get Started' : 'Set Up Admin' ?></a><a class="button button-secondary" href="#workflow">How It Works</a></div>
+    <div class="hero-layout">
+      <div class="hero-content">
+        <div class="hero-kicker"><span class="hero-kicker-dot"></span>Community-powered waste collection</div>
+        <h1>Smart &amp; Efficient<span>Garbage Collection</span><span>System</span></h1>
+        <p>A centralized barangay-level waste collection platform connecting administrators, sitio residents, and truck collectors seamlessly.</p>
+        <div class="hero-buttons"><a class="button button-primary" href="<?= $registrationEnabled ? '/disbasura/register.php' : '/disbasura/admin/setup.php' ?>"><?= $registrationEnabled ? 'Get Started' : 'Set Up Admin' ?></a><a class="button button-secondary" href="#workflow">How It Works</a></div>
+      </div>
+      <div class="hero-art"><img src="/disbasura/assets/images/collection-hero.png" alt="A collection truck and collector working with recycling mascots"></div>
     </div>
   </section>
   <section class="section workflow" id="workflow">
@@ -339,8 +367,8 @@ $contactPending = !empty($_SESSION['contact_pending_id']);
   <section class="login-dialog" role="dialog" aria-modal="true" aria-labelledby="login-title">
     <button class="login-close" type="button" aria-label="Close sign in" data-close-login>&times;</button>
     <div class="login-brand">
-      <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M20 4c-7.6.3-12 2.7-12 7.1 0 2.5 1.8 4.1 4.2 4.1C17 15.2 20.6 10.5 20 4Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M4 20c1-5.1 4-8.1 9-9.7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></span>
-      <span class="login-brand-copy"><span class="login-brand-name">DisBasura</span><span class="login-brand-title">Smart Garbage Collection System</span></span>
+      <img class="brand-mark" src="/disbasura/assets/images/disbasura-logo.png" alt="DisBasura logo">
+      <span class="login-brand-copy"><span class="login-brand-name">DisBasura</span><span class="login-brand-title">Smart Garbage Collection</span></span>
     </div>
     <h2 class="login-heading" id="login-title">Welcome back</h2>
     <p>Sign in with your account. We’ll take you to the right dashboard.</p>
@@ -362,7 +390,7 @@ $contactPending = !empty($_SESSION['contact_pending_id']);
     <div class="signup-prompt">Don't have an account? <a href="/disbasura/register.php">Sign up</a></div>
   </section>
 </div>
-<footer><div class="container footer-row"><a class="footer-brand" href="#home"><span class="brand-mark"><svg viewBox="0 0 24 24" fill="none"><path d="M20 4c-7.6.3-12 2.7-12 7.1 0 2.5 1.8 4.1 4.2 4.1C17 15.2 20.6 10.5 20 4Z" stroke="currentColor" stroke-width="1.6"/><path d="M4 20c1-5.1 4-8.1 9-9.7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></span>DisBasura</a><p class="copyright">© 2026 DisBasura Capstone System. All rights reserved.</p><nav class="footer-links" aria-label="Footer navigation"><a href="#home">Home</a><a href="#about">About</a><a href="#services">Service</a></nav></div></footer>
+<footer><div class="container footer-row"><a class="footer-brand" href="#home"><img class="brand-mark" src="/disbasura/assets/images/disbasura-logo.png" alt="DisBasura logo">DisBasura</a><p class="copyright">© 2026 DisBasura Capstone System. All rights reserved.</p><nav class="footer-links" aria-label="Footer navigation"><a href="#home">Home</a><a href="#about">About</a><a href="#services">Service</a></nav></div></footer>
 <script>
   const menuButton=document.querySelector('.menu-toggle');
   const navLinks=document.querySelector('.nav-links');

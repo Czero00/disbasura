@@ -12,6 +12,20 @@ $cebuCityId = (int)$cityStmt->fetchColumn();
 $barangays = $cebuCityId
     ? array_values(array_filter(get_barangays($cebuCityId), static fn($b) => strcasecmp($b['name'], 'Unassigned') !== 0))
     : [];
+$sitiosByBarangay = [];
+if ($cebuCityId) {
+    $sitioStmt = $db->prepare(
+        "SELECT s.barangay_id, s.name
+         FROM sitios s
+         JOIN barangays b ON b.id = s.barangay_id
+         WHERE b.city_id = ? AND LOWER(b.name) <> 'unassigned'
+         ORDER BY s.name"
+    );
+    $sitioStmt->execute([$cebuCityId]);
+    foreach ($sitioStmt->fetchAll() as $sitioRow) {
+        $sitiosByBarangay[(int)$sitioRow['barangay_id']][] = $sitioRow['name'];
+    }
+}
 $error  = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -158,30 +172,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 const barangaySelect = document.getElementById('barangaySelect');
 const sitioSelect = document.getElementById('sitioSelect');
 const previouslySelectedSitio = sitioSelect.dataset.selected;
+const sitiosByBarangay = <?= json_encode($sitiosByBarangay, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT) ?>;
 
 function loadSitios(barangayId, selectedSitio = '') {
-  sitioSelect.replaceChildren(new Option(barangayId ? 'Loading sitios…' : 'Select barangay first', ''));
-  sitioSelect.disabled = true;
-  if (!barangayId) return;
-
-  fetch('/disbasura/api/geo.php?type=sitios&barangay_id=' + encodeURIComponent(barangayId))
-    .then(response => {
-      if (!response.ok) throw new Error('Unable to load sitios');
-      return response.json();
-    })
-    .then(rows => {
-      sitioSelect.replaceChildren(new Option(rows.length ? 'Select your sitio' : 'No sitios in this barangay yet', ''));
-      rows.forEach(sitio => {
-        const option = new Option(sitio.name, sitio.name);
-        option.selected = sitio.name === selectedSitio;
-        sitioSelect.add(option);
-      });
-      sitioSelect.disabled = rows.length === 0;
-    })
-    .catch(() => {
-      sitioSelect.replaceChildren(new Option('Could not load sitios. Please try again.', ''));
-      sitioSelect.disabled = true;
-    });
+  const rows = sitiosByBarangay[barangayId] || [];
+  sitioSelect.replaceChildren(new Option(
+    !barangayId ? 'Select barangay first' : (rows.length ? 'Select your sitio' : 'No sitios in this barangay yet'),
+    ''
+  ));
+  rows.forEach(name => {
+    const option = new Option(name, name);
+    option.selected = name === selectedSitio;
+    sitioSelect.add(option);
+  });
+  sitioSelect.disabled = !barangayId || rows.length === 0;
 }
 
 barangaySelect.addEventListener('change', () => loadSitios(barangaySelect.value));
